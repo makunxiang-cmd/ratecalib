@@ -1,6 +1,5 @@
 # R CMD check on multiple platforms.
-# 注意：包目录名含空格（"ratecalib 2"）。若仓库根即包根，下面的 working-directory 可删除；
-# 若包在子目录，请把 working-directory 改为实际相对路径。
+# R 包本体位于仓库的 package/ 子目录，因此依赖安装与检查均指定 working-directory: package。
 on:
   push:
     branches: [main, master]
@@ -38,8 +37,10 @@ jobs:
         with:
           extra-packages: any::rcmdcheck
           needs: check
+          working-directory: package
 
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
+          working-directory: package
           build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
