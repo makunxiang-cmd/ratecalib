@@ -170,7 +170,7 @@ calibrate_pass_rates <- function(
     lev <- targets$level[j]
     r <- targets$target_rate[j]
 
-    is_overall <- v %in% c(".overall", "overall", "TOTAL", "总计", "总体")
+    is_overall <- v %in% c(".overall", "overall", "TOTAL")
 
     if (is_overall) {
       mask <- rep(TRUE, m)
@@ -225,8 +225,11 @@ calibrate_pass_rates <- function(
     u <- c(margin_rhs, upper * D)
   }
 
-  P <- methods::as(Matrix::forceSymmetric(P, uplo = "U"), "dgCMatrix")
-  A <- methods::as(A, "dgCMatrix")
+  P <- methods::as(
+    methods::as(Matrix::forceSymmetric(P, uplo = "U"), "generalMatrix"),
+    "CsparseMatrix"
+  )
+  A <- methods::as(methods::as(A, "generalMatrix"), "CsparseMatrix")
 
   settings <- osqp::osqpSettings(
     verbose = verbose,

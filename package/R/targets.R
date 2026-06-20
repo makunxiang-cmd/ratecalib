@@ -15,7 +15,8 @@ make_rate_targets <- function(
     overall_priority = 5,
     group_priority = 1
 ) {
-  if (!is.list(groups) || is.null(names(groups)) || any(names(groups) == "")) {
+  if (!is.list(groups) ||
+      (length(groups) > 0L && (is.null(names(groups)) || any(names(groups) == "")))) {
     stop("groups must be a named list.", call. = FALSE)
   }
 
@@ -45,11 +46,13 @@ make_rate_targets <- function(
     ))
   }
 
-  if (length(group_priority) == 1L) {
-    group_priority <- stats::setNames(rep(group_priority, length(groups)), names(groups))
-  }
-  if (is.null(names(group_priority))) {
-    stop("group_priority must be a scalar or a named vector.", call. = FALSE)
+  if (length(groups) > 0L) {
+    if (length(group_priority) == 1L) {
+      group_priority <- stats::setNames(rep(group_priority, length(groups)), names(groups))
+    }
+    if (is.null(names(group_priority))) {
+      stop("group_priority must be a scalar or a named vector.", call. = FALSE)
+    }
   }
 
   for (v in names(groups)) {

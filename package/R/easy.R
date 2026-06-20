@@ -1,24 +1,27 @@
-#' 一步式合格率权重校准
+#' One-step pass-rate weight calibration
 #'
-#' 面向日常使用的一步式接口。用户只需提供数据、结果变量、初始权重、
-#' 总体目标和各分组目标，函数会自动生成目标表、识别分组变量、执行数据检查，
-#' 并调用 `calibrate_pass_rates()` 完成校准。
+#' A convenience interface for everyday use. The user only supplies the data,
+#' the outcome variable, the initial weights, an overall target and per-group
+#' targets; the function builds the target table, identifies grouping
+#' variables, runs the data checks and calls [calibrate_pass_rates()].
 #'
-#' @param data 数据框，每行代表一个样本。
-#' @param outcome 二元结果变量列名，合格为1，不合格为0。
-#' @param weight 初始权重列名。
-#' @param overall 总体目标合格率，可为NULL。
-#' @param groups 命名列表。每个元素名是分组变量名，元素内容是带名称的目标率向量。
-#' @param priority 总体目标优先级，默认为5。
-#' @param group_priority 分组目标优先级，可为单个数或按变量命名的向量。
-#' @param lower,upper 权重调整倍数上下限。
-#' @param mode `"soft"`为软约束，`"exact"`为精确约束。
-#' @param lambda 软约束惩罚强度。
-#' @param new_weight 新权重列名。
-#' @param check 是否先执行数据检查。
-#' @param verbose 是否显示OSQP求解信息。
+#' @param data A data frame with one row per sampled unit.
+#' @param outcome Name of the binary outcome column (1 = pass, 0 = fail).
+#' @param weight Name of the initial weight column.
+#' @param overall Optional scalar overall target rate; may be `NULL`.
+#' @param groups Named list. Each element name is a grouping variable and each
+#'   element is a named numeric vector of target rates.
+#' @param priority Priority of the overall target. Defaults to 5.
+#' @param group_priority Priority of the group targets; a single number or a
+#'   vector named by grouping variable.
+#' @param lower,upper Lower and upper bounds on the weight-adjustment multiplier.
+#' @param mode `"soft"` for soft constraints, `"exact"` for exact constraints.
+#' @param lambda Soft-constraint penalty strength.
+#' @param new_weight Name of the new calibrated weight column.
+#' @param check Whether to run the data checks before solving.
+#' @param verbose Whether to print OSQP solver information.
 #'
-#' @return `pass_rate_calibration`对象。
+#' @return An object of class `pass_rate_calibration`.
 #' @export
 calibrate_rates <- function(
     data,
@@ -38,12 +41,12 @@ calibrate_rates <- function(
 ) {
   mode <- match.arg(mode)
   if (!is.list(groups) || is.null(names(groups)) || any(names(groups) == "")) {
-    stop("groups 必须是带名称的列表，例如 list(sex = c('男'=0.7, '女'=0.68))。",
+    stop("groups must be a named list, e.g. list(sex = c(M = 0.7, F = 0.68)).",
          call. = FALSE)
   }
   group_vars <- names(groups)
   if (length(group_vars) < 1L) {
-    stop("groups 至少需要包含一个分组变量。", call. = FALSE)
+    stop("groups must contain at least one grouping variable.", call. = FALSE)
   }
 
   targets <- make_rate_targets(
@@ -62,11 +65,11 @@ calibrate_rates <- function(
       targets = targets
     )
     if (!isTRUE(report$ok)) {
-      stop(paste(c("数据检查未通过：", paste0("- ", report$errors)), collapse = "\n"),
+      stop(paste(c("Data checks failed:", paste0("- ", report$errors)), collapse = "\n"),
            call. = FALSE)
     }
     if (length(report$warnings) > 0L) {
-      warning(paste(c("数据检查提示：", paste0("- ", report$warnings)), collapse = "\n"),
+      warning(paste(c("Data check warnings:", paste0("- ", report$warnings)), collapse = "\n"),
               call. = FALSE)
     }
   }
@@ -86,29 +89,32 @@ calibrate_rates <- function(
   )
 }
 
-#' 校准前数据检查
+#' Pre-calibration data checks
 #'
-#' 检查变量、权重、二元结果、分组覆盖情况和目标可支持性，并给出当前加权合格率。
+#' Checks variables, weights, the binary outcome, group coverage and target
+#' supportability, and reports the current weighted pass rates.
 #'
-#' @param data 数据框。
-#' @param outcome 二元结果变量列名。
-#' @param weight 初始权重列名。
-#' @param group_vars 分组变量列名向量。
-#' @param targets 可选目标表。
+#' @param data A data frame.
+#' @param outcome Name of the binary outcome column.
+#' @param weight Name of the initial weight column.
+#' @param group_vars Character vector of grouping-variable names.
+#' @param targets Optional target table.
+#' @param x A `ratecalib_check` object (for the print method).
+#' @param ... Further arguments (ignored by the print method).
 #'
-#' @return 一个列表，包含 `ok`、`errors`、`warnings`、`overview`、
-#'   `group_summary` 和 `target_support`。
+#' @return A list of class `ratecalib_check` with `ok`, `errors`, `warnings`,
+#'   `overview`, `group_summary` and `target_support`.
 #' @export
 check_calibration_data <- function(data, outcome, weight, group_vars, targets = NULL) {
   errors <- character()
   warnings <- character()
 
   if (!is.data.frame(data)) {
-    return(list(ok = FALSE, errors = "data 必须是数据框。", warnings = character()))
+    return(list(ok = FALSE, errors = "data must be a data frame.", warnings = character()))
   }
   required <- unique(c(outcome, weight, group_vars))
   missing <- setdiff(required, names(data))
-  if (length(missing)) errors <- c(errors, paste0("缺少变量：", paste(missing, collapse = "、")))
+  if (length(missing)) errors <- c(errors, paste0("Missing columns: ", paste(missing, collapse = ", ")))
   if (length(errors)) return(list(ok = FALSE, errors = errors, warnings = warnings))
 
   w <- suppressWarnings(as.numeric(data[[weight]]))
@@ -116,16 +122,17 @@ check_calibration_data <- function(data, outcome, weight, group_vars, targets = 
   if (is.logical(y_raw)) y_raw <- as.integer(y_raw)
   y <- suppressWarnings(as.numeric(as.character(y_raw)))
 
-  if (anyNA(w) || any(!is.finite(w))) errors <- c(errors, "初始权重含缺失值或非有限值。")
-  if (any(w <= 0, na.rm = TRUE)) errors <- c(errors, "初始权重必须全部大于0。")
-  if (anyNA(y) || any(!y %in% c(0, 1))) errors <- c(errors, "结果变量必须只包含0和1。")
-  if (anyNA(data[group_vars])) errors <- c(errors, "分组变量含缺失值；请先将缺失值编码为明确类别。")
+  if (anyNA(w) || any(!is.finite(w))) errors <- c(errors, "Initial weights contain missing or non-finite values.")
+  if (any(w <= 0, na.rm = TRUE)) errors <- c(errors, "All initial weights must be greater than 0.")
+  if (anyNA(y) || any(!y %in% c(0, 1))) errors <- c(errors, "The outcome column must contain only 0 and 1.")
+  if (anyNA(data[group_vars])) errors <- c(errors, "Grouping variables contain missing values; recode missing values as an explicit category first.")
   if (length(errors)) return(list(ok = FALSE, errors = errors, warnings = warnings))
 
   weighted_rate <- function(mask) sum(w[mask] * y[mask]) / sum(w[mask])
   overview <- data.frame(
-    指标 = c("样本量", "初始权重总和", "初始加权合格率", "初始权重最小值", "初始权重中位数", "初始权重最大值"),
-    数值 = c(nrow(data), sum(w), weighted_rate(rep(TRUE, nrow(data))), min(w), stats::median(w), max(w)),
+    metric = c("sample_size", "initial_weight_total", "initial_weighted_rate",
+               "initial_weight_min", "initial_weight_median", "initial_weight_max"),
+    value = c(nrow(data), sum(w), weighted_rate(rep(TRUE, nrow(data))), min(w), stats::median(w), max(w)),
     check.names = FALSE
   )
 
@@ -147,7 +154,9 @@ check_calibration_data <- function(data, outcome, weight, group_vars, targets = 
       )
       group_summary <- rbind(group_summary, row)
       if (!row$has_0 || !row$has_1) {
-        warnings <- c(warnings, paste0(v, " = ", lev, " 仅包含", if (row$has_1) "合格样本" else "不合格样本", "，该组的目标率无法通过组内权重调整改变。"))
+        warnings <- c(warnings, paste0(v, " = ", lev, " contains only ",
+                                       if (row$has_1) "passing" else "failing",
+                                       " units; its target rate cannot be changed by reweighting within the group."))
       }
     }
   }
@@ -157,7 +166,7 @@ check_calibration_data <- function(data, outcome, weight, group_vars, targets = 
     targets <- as.data.frame(targets, stringsAsFactors = FALSE)
     needed <- c("variable", "level", "target_rate")
     if (!all(needed %in% names(targets))) {
-      errors <- c(errors, "targets 必须包含 variable、level、target_rate 三列。")
+      errors <- c(errors, "targets must contain the columns variable, level and target_rate.")
     } else {
       target_support <- targets
       target_support$supported <- TRUE
@@ -166,29 +175,30 @@ check_calibration_data <- function(data, outcome, weight, group_vars, targets = 
         v <- as.character(targets$variable[i])
         lev <- as.character(targets$level[i])
         r <- as.numeric(targets$target_rate[i])
-        if (v %in% c(".overall", "overall", "总体", "总计", "TOTAL")) {
+        if (v %in% c(".overall", "overall", "TOTAL")) {
           mask <- rep(TRUE, nrow(data))
         } else if (!v %in% group_vars) {
           target_support$supported[i] <- FALSE
-          target_support$reason[i] <- "目标变量不在group_vars中"
+          target_support$reason[i] <- "target variable is not in group_vars"
           next
         } else {
           mask <- as.character(data[[v]]) == lev
         }
         if (!any(mask)) {
           target_support$supported[i] <- FALSE
-          target_support$reason[i] <- "该类别没有样本"
+          target_support$reason[i] <- "no sample in this category"
         } else if (all(y[mask] == 0) && r > 0) {
           target_support$supported[i] <- FALSE
-          target_support$reason[i] <- "该组全部为0，无法达到大于0的目标"
+          target_support$reason[i] <- "group is all 0; a target above 0 is unreachable"
         } else if (all(y[mask] == 1) && r < 1) {
           target_support$supported[i] <- FALSE
-          target_support$reason[i] <- "该组全部为1，无法达到小于1的目标"
+          target_support$reason[i] <- "group is all 1; a target below 1 is unreachable"
         }
       }
       bad <- which(!target_support$supported)
       if (length(bad)) {
-        errors <- c(errors, paste0("存在", length(bad), "个数据不支持的目标；请查看 target_support。"))
+        errors <- c(errors, paste0("There are ", length(bad),
+                                   " target(s) not supported by the data; see target_support."))
       }
     }
   }
@@ -203,44 +213,45 @@ check_calibration_data <- function(data, outcome, weight, group_vars, targets = 
   ), class = "ratecalib_check")
 }
 
+#' @rdname check_calibration_data
 #' @export
 print.ratecalib_check <- function(x, ...) {
-  cat("ratecalib 校准前检查\n")
-  cat("状态：", if (isTRUE(x$ok)) "通过" else "未通过", "\n", sep = "")
+  cat("ratecalib pre-calibration check\n")
+  cat("Status: ", if (isTRUE(x$ok)) "passed" else "failed", "\n", sep = "")
   if (length(x$errors)) {
-    cat("\n错误：\n", paste0("- ", x$errors, collapse = "\n"), "\n", sep = "")
+    cat("\nErrors:\n", paste0("- ", x$errors, collapse = "\n"), "\n", sep = "")
   }
   if (length(x$warnings)) {
-    cat("\n提示：\n", paste0("- ", x$warnings, collapse = "\n"), "\n", sep = "")
+    cat("\nWarnings:\n", paste0("- ", x$warnings, collapse = "\n"), "\n", sep = "")
   }
   if (!is.null(x$overview)) {
-    cat("\n数据概况：\n")
+    cat("\nData overview:\n")
     print(x$overview, row.names = FALSE)
   }
   invisible(x)
 }
 
-#' 生成演示数据
+#' Generate example data
 #'
-#' 创建一份包含性别、城乡、五段学历、五段年龄、合格指标和初始权重的模拟数据。
+#' Creates a simulated data set with sex, residence, a 5-level education
+#' variable, a 5-level age variable, a pass indicator and initial weights.
 #'
-#' @param n 样本量。
-#' @param seed 随机种子。
-#' @return 数据框。
+#' @param n Sample size.
+#' @param seed Random seed.
+#' @return A data frame.
 #' @export
 example_rate_data <- function(n = 5000L, seed = 2026L) {
   set.seed(seed)
-  sex <- sample(c("男", "女"), n, TRUE, c(0.49, 0.51))
-  residence <- sample(c("城镇", "农村"), n, TRUE, c(0.65, 0.35))
-  education5 <- sample(paste0("学历", 1:5), n, TRUE, c(0.14, 0.23, 0.25, 0.27, 0.11))
-  age5 <- sample(paste0("年龄", 1:5), n, TRUE, c(0.20, 0.24, 0.23, 0.19, 0.14))
-  eta <- 0.45 + 0.10 * (sex == "男") + 0.08 * (residence == "城镇") +
-    0.09 * (as.integer(sub("学历", "", education5)) - 3) -
-    0.06 * (as.integer(sub("年龄", "", age5)) - 3)
+  sex <- sample(c("M", "F"), n, TRUE, c(0.49, 0.51))
+  residence <- sample(c("Urban", "Rural"), n, TRUE, c(0.65, 0.35))
+  education5 <- sample(paste0("Edu", 1:5), n, TRUE, c(0.14, 0.23, 0.25, 0.27, 0.11))
+  age5 <- sample(paste0("Age", 1:5), n, TRUE, c(0.20, 0.24, 0.23, 0.19, 0.14))
+  eta <- 0.45 + 0.10 * (sex == "M") + 0.08 * (residence == "Urban") +
+    0.09 * (as.integer(sub("Edu", "", education5)) - 3) -
+    0.06 * (as.integer(sub("Age", "", age5)) - 3)
   p <- stats::plogis(eta)
   qualified <- stats::rbinom(n, 1, p)
   initial_weight <- exp(stats::rnorm(n, 0, 0.28))
   data.frame(sex, residence, education5, age5, qualified, initial_weight,
              stringsAsFactors = FALSE)
 }
-

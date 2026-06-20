@@ -1,3 +1,16 @@
+# ratecalib (开发中)
+
+- **R 代码全面英文化以满足 CRAN ASCII 可移植性要求**：报错信息、`print`/`summary`/`plot`
+  输出、`example_rate_data()` 的类别值（现为 M/F、Urban/Rural、Edu1-5、Age1-5）均改为英文。
+- **移除中文函数别名**（`校准合格率`、`生成目标表`、`检查校准数据`、`生成演示数据`）；所有函数仅保留英文名。
+- CRAN 准备：删除 `DESCRIPTION` 的 `LazyData`、补 `methods` 到 Imports、改写英文 Description、
+  修正 `URL`/`BugReports` 为真实仓库、`as()` 改用新版 Matrix 推荐写法、中文 PDF 手册移至
+  `inst/manual/` 并改 ASCII 文件名。`R CMD check --as-cran` 现为 0 ERROR / 0 WARNING（仅余首次提交的 New submission NOTE）。
+- **修复**：`make_rate_targets()` 仅给 `overall`（不给任何分组）时会误报 “groups must be a named list”
+  与 “group_priority must be a scalar or a named vector”——现已支持仅总体目标的用法。
+- 大幅扩充测试：新增 exact 模式达标与边际保持、soft 模式 achieved≈target、触界、错误路径、
+  `check_calibration_data()` 各分支、以及 `print`/`summary`/`plot`/`calibration_diagnostics` 等 S3 方法的覆盖。
+
 # ratecalib 0.2.1
 
 - 全面改写中文README，加入理论、算法、参数、诊断、案例和常见问题。

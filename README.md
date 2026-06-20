@@ -1,4 +1,8 @@
-# ratecalib：多分组合格率目标的中文校准加权工具
+# ratecalib：多分组合格率目标的校准加权工具
+
+> 说明：本包的 **R 函数名、报错信息与打印输出均为英文**（满足 CRAN 的 ASCII 可移植性要求）；
+> 本文档为中文。旧版的中文函数别名（如 `校准合格率`）已移除，请使用英文函数名。
+> 演示数据 `example_rate_data()` 的类别值也已英文化：`M`/`F`、`Urban`/`Rural`、`Edu1`–`Edu5`、`Age1`–`Age5`。
 
 `ratecalib` 用于调整人口样本或调查样本的初始权重，使一个二元指标（合格=1、不合格=0）的总体加权合格率，以及性别、城乡、学历、年龄等多个重叠分组的加权合格率，尽量接近或精确达到给定目标。
 
@@ -14,7 +18,7 @@
 
 包提供两层接口：
 
-1. **一步式中文友好接口**：`calibrate_rates()` 或 `校准合格率()`；
+1. **一步式接口**：`calibrate_rates()`，自动建目标表、识别分组、数据检查后求解；
 2. **底层专业接口**：`calibrate_pass_rates()`，适合需要完全控制目标表和求解参数的使用者。
 
 ---
@@ -68,19 +72,13 @@ dat <- example_rate_data(n = 5000)
 head(dat)
 ```
 
-中文别名也可直接使用：
-
-```r
-dat <- 生成演示数据(n = 5000)
-```
-
 演示数据包含：
 
 ```text
-sex             性别
-residence       城乡
-education5      五段学历
-age5            五段年龄
+sex             性别            取值 M / F
+residence       城乡            取值 Urban / Rural
+education5      五段学历        取值 Edu1 … Edu5
+age5            五段年龄        取值 Age1 … Age5
 qualified       合格指标，1=合格，0=不合格
 initial_weight  初始权重
 ```
@@ -96,21 +94,21 @@ fit <- calibrate_rates(
   overall = 0.70,
 
   groups = list(
-    sex = c("男" = 0.72, "女" = 0.68),
-    residence = c("城镇" = 0.71, "农村" = 0.685),
+    sex = c(M = 0.72, F = 0.68),
+    residence = c(Urban = 0.71, Rural = 0.685),
     education5 = c(
-      "学历1" = 0.62,
-      "学历2" = 0.66,
-      "学历3" = 0.70,
-      "学历4" = 0.74,
-      "学历5" = 0.78
+      Edu1 = 0.62,
+      Edu2 = 0.66,
+      Edu3 = 0.70,
+      Edu4 = 0.74,
+      Edu5 = 0.78
     ),
     age5 = c(
-      "年龄1" = 0.76,
-      "年龄2" = 0.73,
-      "年龄3" = 0.70,
-      "年龄4" = 0.67,
-      "年龄5" = 0.64
+      Age1 = 0.76,
+      Age2 = 0.73,
+      Age3 = 0.70,
+      Age4 = 0.67,
+      Age5 = 0.64
     )
   ),
 
@@ -126,21 +124,6 @@ fit <- calibrate_rates(
   upper = 4,
   mode = "soft",
   new_weight = "final_weight"
-)
-```
-
-中文函数名完全等价：
-
-```r
-fit <- 校准合格率(
-  data = dat,
-  outcome = "qualified",
-  weight = "initial_weight",
-  overall = 0.70,
-  groups = list(
-    sex = c("男" = 0.72, "女" = 0.68),
-    residence = c("城镇" = 0.71, "农村" = 0.685)
-  )
 )
 ```
 
@@ -338,7 +321,7 @@ upper = 4
 targets <- make_rate_targets(
   overall = 0.70,
   groups = list(
-    sex = c("男" = 0.72, "女" = 0.68)
+    sex = c(M = 0.72, F = 0.68)
   )
 )
 
@@ -351,12 +334,6 @@ check <- check_calibration_data(
 )
 
 check
-```
-
-中文别名：
-
-```r
-检查校准数据(...)
 ```
 
 检查内容包括：
@@ -392,8 +369,8 @@ check$target_support
 targets <- make_rate_targets(
   overall = 0.70,
   groups = list(
-    sex = c("男" = 0.72, "女" = 0.68),
-    residence = c("城镇" = 0.71, "农村" = 0.685)
+    sex = c(M = 0.72, F = 0.68),
+    residence = c(Urban = 0.71, Rural = 0.685)
   ),
   overall_priority = 5,
   group_priority = c(sex = 2, residence = 2)
@@ -405,8 +382,8 @@ targets <- make_rate_targets(
 ```text
 variable     level   target_rate   priority
 .overall     .all       0.700          5
-sex          男         0.720          2
-sex          女         0.680          2
+sex          M          0.720          2
+sex          F          0.680          2
 ```
 
 然后调用底层函数：
@@ -529,21 +506,21 @@ fit <- calibrate_rates(
   weight = "initial_weight",
   overall = 0.70,
   groups = list(
-    sex = c("男" = 0.72, "女" = 0.68),
-    residence = c("城镇" = 0.71, "农村" = 0.685),
+    sex = c(M = 0.72, F = 0.68),
+    residence = c(Urban = 0.71, Rural = 0.685),
     education5 = c(
-      "学历1" = 0.62,
-      "学历2" = 0.66,
-      "学历3" = 0.70,
-      "学历4" = 0.74,
-      "学历5" = 0.78
+      Edu1 = 0.62,
+      Edu2 = 0.66,
+      Edu3 = 0.70,
+      Edu4 = 0.74,
+      Edu5 = 0.78
     ),
     age5 = c(
-      "年龄1" = 0.76,
-      "年龄2" = 0.73,
-      "年龄3" = 0.70,
-      "年龄4" = 0.67,
-      "年龄5" = 0.64
+      Age1 = 0.76,
+      Age2 = 0.73,
+      Age3 = 0.70,
+      Age4 = 0.67,
+      Age5 = 0.64
     )
   ),
   priority = 5,

@@ -20,6 +20,7 @@ install.packages(c("devtools", "roxygen2", "testthat", "Matrix", "osqp"))
 
 ```r
 devtools::load_all("package")    # 加载包
+devtools::document("package")    # 由 roxygen 注释重新生成 NAMESPACE 与 man/
 devtools::test("package")        # 运行测试
 devtools::check("package")       # 提交前必跑 R CMD check
 ```
@@ -29,10 +30,12 @@ devtools::check("package")       # 提交前必跑 R CMD check
 ## 代码约定
 
 - **只调权重，不改 outcome**：本包的核心哲学，任何修改原始结果变量的逻辑都不接受。
-- **新增导出函数时**：同步更新 `package/NAMESPACE`、`package/man/*.Rd`；面向用户的函数应在
-  `package/R/zzz_aliases.R` 注册中文别名并导出。
+- **roxygen 是 `NAMESPACE` 与 `man/` 的唯一真源**：只编辑 `package/R/*.R` 里的 `#'` 注释，
+  再跑 `devtools::document("package")` 生成；**切勿手改 `NAMESPACE` 或 `man/*.Rd`**（会被覆盖）。
+- **R 代码全英文（CRAN ASCII 硬约束）**：报错信息、`print`/`summary`/`plot` 输出、演示数据类别值
+  都用 ASCII 英文，新增导出函数只用英文名（不再提供中文别名）。
 - **soft 为默认模式**，文档与示例优先演示 soft。
-- 参数校验要给出清晰、可操作的报错信息（面向用户的接口用中文）。
+- 参数校验要给出清晰、可操作的报错信息。
 - 缩进 2 空格，遵循 tidyverse 风格。
 
 ## 测试要求

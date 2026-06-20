@@ -98,12 +98,11 @@ exact 模式可能内在矛盾，目前只能等 OSQP 报 `primal infeasible`。
 - `check_calibration_data()` 各分支；
 - 错误路径：权重含 0、outcome 非 0/1、目标变量不存在、exact 不可行；
 - 边界触界（`.at_lower_bound` / `.at_upper_bound`）；
-- 中文别名可调用；
 - S3 方法（print / summary / plot / diagnostics）输出。
 
 ### P1 — 增加 vignette
-现在只有 PDF。写一个 `.Rmd` vignette（端到端案例 + soft/exact 对比 + 诊断解读），
-既参与构建又能生成 pkgdown 站点。
+中文 PDF 手册已删除、内容并入中文 README。建议写一个 `.Rmd` vignette（端到端案例 +
+soft/exact 对比 + 诊断解读），既参与构建又能生成 pkgdown 站点。
 
 ### P2 — pkgdown 站点与发布材料
 如打算发布，可加 `_pkgdown.yml`（文档站点）与 `cran-comments.md`（CRAN 提交说明）。
@@ -112,13 +111,27 @@ exact 模式可能内在矛盾，目前只能等 OSQP 报 `primal infeasible`。
 
 ## 五、建议的起步顺序
 
-性价比最高的三件，建议先做：
+性价比最高的三件，**均已完成**（2026-06）：
 
-1. **删 `LazyData`**（P0，一行）。
-2. **转 roxygen**（P1，消除 NAMESPACE/man 漂移）。
-3. **补一组测试**（P0，尤其 exact 模式与 `achieved ≈ target` 断言）。
+1. ~~**删 `LazyData`**~~ ✅ 连同其余 CRAN 障碍一并清理（见下「进度」）。
+2. ~~**转 roxygen**~~ ✅ `NAMESPACE`/`man/` 现由 `#'` 注释生成，`document()` 是唯一真源。
+3. ~~**补一组测试**~~ ✅ 已覆盖 exact 达标、soft `achieved≈target`、触界、错误路径、`check_calibration_data` 各分支与 S3 方法。
 
-方法论扩展（距离函数族 / 连续变量校准）建议单独立项，先出设计方案再实现。
+方法论扩展（距离函数族 / 连续变量校准）建议单独立项，先出设计方案再实现（见 [`METHODOLOGY-ROADMAP.md`](METHODOLOGY-ROADMAP.md)，Phase 4 产出）。
+
+---
+
+## 进度（2026-06 接手）
+
+- **CRAN 障碍清理（Phase 1）**：删 `LazyData`、补 `methods` 到 Imports、英文 Description、
+  修正 `URL`/`BugReports`、`as()` 改新版 Matrix 写法、PDF 移至 `inst/manual/` 且 ASCII 文件名、
+  **R 代码全面英文化**（删除中文别名，报错/输出/演示数据类别值改英文）。
+  `R CMD check --as-cran` 由 3 WARNING/4 NOTE 降到 **0 ERROR / 0 WARNING / 1 NOTE**（仅 New submission）。
+- **测试扩充（Phase 2）**：测试从 2 个增至 27 个 `test_that`；过程中修复 `make_rate_targets()`
+  仅给 `overall`（无分组）时的两处误报。
+- **转 roxygen（Phase 3）**：`DESCRIPTION` 加 `RoxygenNote`/`Roxygen: list(markdown=TRUE)`，
+  `roxygenise()` 幂等无告警。
+- **收尾**：中文 PDF 手册已删除；README 已改用英文函数名与英文演示数据类别值（`M/F`、`Urban/Rural`、`Edu1-5`、`Age1-5`），示例经端到端实跑验证。
 
 ---
 
