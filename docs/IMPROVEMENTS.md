@@ -127,7 +127,7 @@ soft/exact 对比 + 诊断解读），既参与构建又能生成 pkgdown 站点
   修正 `URL`/`BugReports`、`as()` 改新版 Matrix 写法、PDF 移至 `inst/manual/` 且 ASCII 文件名、
   **R 代码全面英文化**（删除中文别名，报错/输出/演示数据类别值改英文）。
   `R CMD check --as-cran` 由 3 WARNING/4 NOTE 降到 **0 ERROR / 0 WARNING / 1 NOTE**（仅 New submission）。
-- **测试扩充（Phase 2）**：测试从 2 个增至 27 个 `test_that`；过程中修复 `make_rate_targets()`
+- **测试扩充（Phase 2）**：测试从 2 个增至 25 个 `test_that`；过程中修复 `make_rate_targets()`
   仅给 `overall`（无分组）时的两处误报。
 - **转 roxygen（Phase 3）**：`DESCRIPTION` 加 `RoxygenNote`/`Roxygen: list(markdown=TRUE)`，
   `roxygenise()` 幂等无告警。
