@@ -1,0 +1,11 @@
+^ratecalib\.Rproj$
+^\.Rproj\.user$
+^README\.Rmd$
+^AGENTS\.md$
+^CONTRIBUTING\.md$
+^dev$
+^docs$
+^\.github$
+^\.gitignore$
+^README\.txt$
+^\.DS_Store$

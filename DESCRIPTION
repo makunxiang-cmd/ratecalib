@@ -1,0 +1,18 @@
+Package: ratecalib
+Type: Package
+Title: 多分组合格率目标的校准加权工具
+Version: 0.2.1
+Authors@R: person("Kunxiang", "Ma", email = "mkx07080412@gmail.com", role = c("aut", "cre"))
+Description: 面向二元结果指标的多目标校准加权工具。可在尽量保留初始权重结构和人口边际总量的前提下，使总体及多个重叠分组的加权合格率接近或精确达到给定目标。包内提供中文一步式接口、校准前数据检查、目标表生成、软约束与精确约束求解、有效样本量与权重设计效应诊断、目标误差检查和演示数据。底层采用有界凸二次规划，并先将个人记录聚合到“人口单元×结果状态”层级，以提高大样本计算效率。
+License: MIT + file LICENSE
+URL: https://github.com/your-account/ratecalib
+BugReports: https://github.com/your-account/ratecalib/issues
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 4.1.0)
+Imports:
+    Matrix,
+    osqp
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
