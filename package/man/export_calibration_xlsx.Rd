@@ -20,3 +20,11 @@ export_calibration_xlsx(fit, path, overwrite = TRUE)
 Writes a multi-sheet workbook: \code{data} (with the calibrated weight column),
 \code{target_check}, \code{margin_check}, \code{diagnostics} and \code{settings}.
 }
+\examples{
+if (requireNamespace("openxlsx", quietly = TRUE)) {
+  d <- example_rate_data(300)
+  fit <- calibrate_rates(d, "qualified", "initial_weight",
+                         groups = list(sex = c(M = 0.72, F = 0.68)))
+  export_calibration_xlsx(fit, tempfile(fileext = ".xlsx"))
+}
+}

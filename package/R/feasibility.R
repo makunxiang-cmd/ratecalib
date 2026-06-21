@@ -32,6 +32,11 @@
 #' @return A list of class `ratecalib_feasibility` with elements `consistency`
 #'   (a list with `pins`, `consistent` and `detail`), `marginal` (a data frame
 #'   of per-target achievable intervals), `necessary_ok` (logical) and `note`.
+#' @examples
+#' d <- example_rate_data(300)
+#' targets <- make_rate_targets(overall = 0.62,
+#'                              groups = list(sex = c(M = 0.66, F = 0.60)))
+#' calibration_feasibility(d, "qualified", "initial_weight", "sex", targets)
 #' @export
 calibration_feasibility <- function(data, outcome, weight, group_vars,
                                     targets, lower = 0.25, upper = 4,

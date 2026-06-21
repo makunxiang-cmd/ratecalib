@@ -19,3 +19,11 @@ Reads a worksheet of targets and maps its headers (English or Chinese, in
 any letter case) onto the canonical columns \code{variable}, \code{level},
 \code{target_rate} and the optional \code{priority}.
 }
+\examples{
+if (requireNamespace("openxlsx", quietly = TRUE)) {
+  path <- tempfile(fileext = ".xlsx")
+  openxlsx::write.xlsx(
+    make_rate_targets(groups = list(sex = c(M = 0.72, F = 0.68))), path)
+  read_targets_xlsx(path)
+}
+}

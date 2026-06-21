@@ -23,6 +23,8 @@
 #'   `value` and `target` (plus optional `priority`).
 #'
 #' @return A data frame suitable for `calibrate_pass_rates()`.
+#' @examples
+#' make_rate_targets(overall = 0.70, groups = list(sex = c(M = 0.72, F = 0.68)))
 #' @export
 make_rate_targets <- function(
     overall = NULL,

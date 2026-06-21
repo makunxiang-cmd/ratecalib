@@ -24,6 +24,13 @@
 #'   calibrated `weights`, the matrix of calibrated `replicate_weights`, and the
 #'   `scale`/`rscales` constants.
 #' @seealso [replicate_variance()]
+#' @examples
+#' d <- example_rate_data(300)
+#' fit <- calibrate_rates(d, "qualified", "initial_weight",
+#'                        groups = list(sex = c(M = 0.72, F = 0.68)))
+#' repw <- d$initial_weight * matrix(stats::runif(nrow(d) * 5, 0.8, 1.2), ncol = 5)
+#' rc <- calibrate_replicate_weights(fit, repw)
+#' replicate_variance(rc, d$qualified, statistic = "mean")
 #' @export
 calibrate_replicate_weights <- function(fit, repweights, scale = 1,
                                         rscales = NULL, progress = FALSE) {
@@ -93,6 +100,13 @@ calibrate_replicate_weights <- function(fit, repweights, scale = 1,
 #' @param statistic Either `"total"` (weighted sum) or `"mean"` (weighted mean).
 #'
 #' @return A list with `estimate`, `variance` and `se`.
+#' @examples
+#' d <- example_rate_data(300)
+#' fit <- calibrate_rates(d, "qualified", "initial_weight",
+#'                        groups = list(sex = c(M = 0.72, F = 0.68)))
+#' repw <- d$initial_weight * matrix(stats::runif(nrow(d) * 5, 0.8, 1.2), ncol = 5)
+#' rc <- calibrate_replicate_weights(fit, repw)
+#' replicate_variance(rc, d$qualified, statistic = "mean")
 #' @export
 replicate_variance <- function(object, x, statistic = c("total", "mean")) {
   statistic <- match.arg(statistic)

@@ -63,3 +63,9 @@ condition only: passing every single-target check does not guarantee the
 targets are jointly feasible, because overlapping units couple the groups.
 }
 }
+\examples{
+d <- example_rate_data(300)
+targets <- make_rate_targets(overall = 0.62,
+                             groups = list(sex = c(M = 0.66, F = 0.60)))
+calibration_feasibility(d, "qualified", "initial_weight", "sex", targets)
+}

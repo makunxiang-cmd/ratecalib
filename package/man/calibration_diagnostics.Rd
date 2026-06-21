@@ -17,3 +17,9 @@ A list with target, margin and weight diagnostics.
 \description{
 Extract calibration diagnostics
 }
+\examples{
+d <- example_rate_data(300)
+fit <- calibrate_rates(d, "qualified", "initial_weight",
+                       groups = list(sex = c(M = 0.72, F = 0.68)))
+calibration_diagnostics(fit)
+}

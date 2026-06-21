@@ -63,3 +63,10 @@ Adjust initial positive weights so that an overall binary outcome rate and
 subgroup outcome rates approach or exactly match specified targets. The
 optimization is performed on demographic-cell-by-outcome aggregates.
 }
+\examples{
+d <- example_rate_data(300)
+targets <- make_rate_targets(groups = list(sex = c(M = 0.72, F = 0.68)))
+fit <- calibrate_pass_rates(d, "qualified", "initial_weight",
+                            group_vars = "sex", targets = targets)
+fit$target_check
+}

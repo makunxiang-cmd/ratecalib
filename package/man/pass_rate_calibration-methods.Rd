@@ -47,3 +47,13 @@ column.
 \description{
 S3 methods that print, summarize and plot calibration results.
 }
+\examples{
+d <- example_rate_data(300)
+fit <- calibrate_rates(d, "qualified", "initial_weight",
+                       groups = list(sex = c(M = 0.72, F = 0.68)))
+print(fit)
+summary(fit)
+head(weights(fit))
+head(as.data.frame(fit))
+plot(fit, type = "target_error")
+}

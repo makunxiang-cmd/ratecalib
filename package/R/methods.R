@@ -3,6 +3,11 @@
 #' @param x A `pass_rate_calibration` object.
 #' @param sort_targets Whether to sort targets by absolute error, descending.
 #' @return A list with target, margin and weight diagnostics.
+#' @examples
+#' d <- example_rate_data(300)
+#' fit <- calibrate_rates(d, "qualified", "initial_weight",
+#'                        groups = list(sex = c(M = 0.72, F = 0.68)))
+#' calibration_diagnostics(fit)
 #' @export
 calibration_diagnostics <- function(x, sort_targets = TRUE) {
   if (!inherits(x, "pass_rate_calibration")) {
@@ -33,6 +38,15 @@ calibration_diagnostics <- function(x, sort_targets = TRUE) {
 #'   `summary_pass_rate_calibration` object; `weights` returns the calibrated
 #'   weight vector; `as.data.frame` returns the data with the calibrated weight
 #'   column.
+#' @examples
+#' d <- example_rate_data(300)
+#' fit <- calibrate_rates(d, "qualified", "initial_weight",
+#'                        groups = list(sex = c(M = 0.72, F = 0.68)))
+#' print(fit)
+#' summary(fit)
+#' head(weights(fit))
+#' head(as.data.frame(fit))
+#' plot(fit, type = "target_error")
 #' @name pass_rate_calibration-methods
 NULL
 

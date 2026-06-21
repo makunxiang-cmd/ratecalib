@@ -30,6 +30,12 @@
 #' @param verbose Logical; passed to OSQP.
 #'
 #' @return An object of class `pass_rate_calibration`.
+#' @examples
+#' d <- example_rate_data(300)
+#' targets <- make_rate_targets(groups = list(sex = c(M = 0.72, F = 0.68)))
+#' fit <- calibrate_pass_rates(d, "qualified", "initial_weight",
+#'                             group_vars = "sex", targets = targets)
+#' fit$target_check
 #' @export
 calibrate_pass_rates <- function(
     data,

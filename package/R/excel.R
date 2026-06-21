@@ -19,6 +19,12 @@
 #' @param path Path to an `.xlsx` file.
 #' @param sheet Sheet name or index (default 1).
 #' @return A data frame with one row per sampled unit.
+#' @examples
+#' if (requireNamespace("openxlsx", quietly = TRUE)) {
+#'   path <- tempfile(fileext = ".xlsx")
+#'   openxlsx::write.xlsx(example_rate_data(50), path)
+#'   head(read_calibration_data(path))
+#' }
 #' @export
 read_calibration_data <- function(path, sheet = 1) {
   .need_openxlsx()
@@ -55,6 +61,13 @@ read_calibration_data <- function(path, sheet = 1) {
 #' @param path Path to an `.xlsx` file.
 #' @param sheet Sheet name or index (default 1).
 #' @return A data frame suitable for [calibrate_pass_rates()].
+#' @examples
+#' if (requireNamespace("openxlsx", quietly = TRUE)) {
+#'   path <- tempfile(fileext = ".xlsx")
+#'   openxlsx::write.xlsx(
+#'     make_rate_targets(groups = list(sex = c(M = 0.72, F = 0.68))), path)
+#'   read_targets_xlsx(path)
+#' }
 #' @export
 read_targets_xlsx <- function(path, sheet = 1) {
   .need_openxlsx()
@@ -103,6 +116,16 @@ read_targets_xlsx <- function(path, sheet = 1) {
 #'   table when `NULL`.
 #' @param ... Further arguments passed to [calibrate_pass_rates()].
 #' @return An object of class `pass_rate_calibration`.
+#' @examples
+#' if (requireNamespace("openxlsx", quietly = TRUE)) {
+#'   path <- tempfile(fileext = ".xlsx")
+#'   d <- example_rate_data(300)
+#'   tg <- make_rate_targets(groups = list(sex = c(M = 0.72, F = 0.68)))
+#'   openxlsx::write.xlsx(list(data = d, targets = tg), path)
+#'   fit <- calibrate_from_excel(path, "qualified", "initial_weight",
+#'                               data_sheet = "data", targets_sheet = "targets")
+#'   fit$target_check
+#' }
 #' @export
 calibrate_from_excel <- function(path, outcome, weight, data_sheet = 1,
                                  targets_sheet = "targets", group_vars = NULL,
@@ -126,6 +149,13 @@ calibrate_from_excel <- function(path, outcome, weight, data_sheet = 1,
 #' @param path Output `.xlsx` path.
 #' @param overwrite Whether to overwrite an existing file.
 #' @return `path`, invisibly.
+#' @examples
+#' if (requireNamespace("openxlsx", quietly = TRUE)) {
+#'   d <- example_rate_data(300)
+#'   fit <- calibrate_rates(d, "qualified", "initial_weight",
+#'                          groups = list(sex = c(M = 0.72, F = 0.68)))
+#'   export_calibration_xlsx(fit, tempfile(fileext = ".xlsx"))
+#' }
 #' @export
 export_calibration_xlsx <- function(fit, path, overwrite = TRUE) {
   .need_openxlsx()

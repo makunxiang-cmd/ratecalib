@@ -21,3 +21,11 @@ A list with \code{estimate}, \code{variance} and \code{se}.
 Computes the point estimate, variance and standard error of a weighted total
 or mean of a study variable, using calibrated replicate weights.
 }
+\examples{
+d <- example_rate_data(300)
+fit <- calibrate_rates(d, "qualified", "initial_weight",
+                       groups = list(sex = c(M = 0.72, F = 0.68)))
+repw <- d$initial_weight * matrix(stats::runif(nrow(d) * 5, 0.8, 1.2), ncol = 5)
+rc <- calibrate_replicate_weights(fit, repw)
+replicate_variance(rc, d$qualified, statistic = "mean")
+}

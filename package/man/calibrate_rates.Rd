@@ -64,3 +64,9 @@ the outcome variable, the initial weights, an overall target and per-group
 targets; the function builds the target table, identifies grouping
 variables, runs the data checks and calls \code{\link[=calibrate_pass_rates]{calibrate_pass_rates()}}.
 }
+\examples{
+d <- example_rate_data(300)
+fit <- calibrate_rates(d, "qualified", "initial_weight",
+                       groups = list(sex = c(M = 0.72, F = 0.68)))
+summary(fit)
+}

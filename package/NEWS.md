@@ -1,4 +1,6 @@
-# ratecalib (开发中)
+# ratecalib 0.3.0
+
+首个 CRAN 提交版本。本版相对 0.2.1 的主要新增与变更如下。
 
 - **新增中英文免责声明与使用条款**，针对本工具可能被滥用于学术造假的风险：随包分发
   `inst/DISCLAIMER.md`（安装后 `system.file("DISCLAIMER.md", package="ratecalib")` 可取），项目根

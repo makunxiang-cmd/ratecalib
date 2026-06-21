@@ -18,3 +18,7 @@ A data frame.
 Creates a simulated data set with sex, residence, a 5-level education
 variable, a 5-level age variable, a pass indicator and initial weights.
 }
+\examples{
+d <- example_rate_data(200)
+head(d)
+}

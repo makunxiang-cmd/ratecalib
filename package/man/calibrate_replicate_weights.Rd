@@ -46,6 +46,14 @@ calibrated replicate weights feed \code{\link[=replicate_variance]{replicate_var
 variance estimation, mirroring the replicate-weights approach of the \code{survey}
 package.
 }
+\examples{
+d <- example_rate_data(300)
+fit <- calibrate_rates(d, "qualified", "initial_weight",
+                       groups = list(sex = c(M = 0.72, F = 0.68)))
+repw <- d$initial_weight * matrix(stats::runif(nrow(d) * 5, 0.8, 1.2), ncol = 5)
+rc <- calibrate_replicate_weights(fit, repw)
+replicate_variance(rc, d$qualified, statistic = "mean")
+}
 \seealso{
 \code{\link[=replicate_variance]{replicate_variance()}}
 }

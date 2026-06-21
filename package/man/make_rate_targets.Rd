@@ -52,3 +52,6 @@ A data frame suitable for \code{calibrate_pass_rates()}.
 \description{
 Build a pass-rate target table
 }
+\examples{
+make_rate_targets(overall = 0.70, groups = list(sex = c(M = 0.72, F = 0.68)))
+}

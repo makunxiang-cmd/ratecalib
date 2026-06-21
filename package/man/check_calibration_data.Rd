@@ -45,3 +45,7 @@ A list of class \code{ratecalib_check} with \code{ok}, \code{errors}, \code{warn
 Checks variables, weights, the binary outcome, group coverage and target
 supportability, and reports the current weighted pass rates.
 }
+\examples{
+d <- example_rate_data(300)
+check_calibration_data(d, "qualified", "initial_weight", group_vars = "sex")
+}

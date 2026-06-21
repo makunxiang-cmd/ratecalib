@@ -1,7 +1,7 @@
 Package: ratecalib
 Type: Package
-Title: 多分组合格率目标的校准加权工具
-Version: 0.2.1
+Title: Calibration Weighting to Multiple Subgroup Pass-Rate Targets
+Version: 0.3.0
 Authors@R: person("Kunxiang", "Ma", email = "mkx07080412@gmail.com", role = c("aut", "cre"))
 Description: Calibration weighting for binary-outcome pass rates against
     multiple overlapping subgroup targets. Adjusts initial positive weights

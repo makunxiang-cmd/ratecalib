@@ -17,3 +17,10 @@ A data frame with one row per sampled unit.
 \description{
 Read calibration sample data from an Excel workbook
 }
+\examples{
+if (requireNamespace("openxlsx", quietly = TRUE)) {
+  path <- tempfile(fileext = ".xlsx")
+  openxlsx::write.xlsx(example_rate_data(50), path)
+  head(read_calibration_data(path))
+}
+}

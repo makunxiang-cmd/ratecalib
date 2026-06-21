@@ -37,3 +37,14 @@ An object of class \code{pass_rate_calibration}.
 One-step convenience: read the sample data and the target table from an
 Excel workbook, infer the grouping variables from the targets, and solve.
 }
+\examples{
+if (requireNamespace("openxlsx", quietly = TRUE)) {
+  path <- tempfile(fileext = ".xlsx")
+  d <- example_rate_data(300)
+  tg <- make_rate_targets(groups = list(sex = c(M = 0.72, F = 0.68)))
+  openxlsx::write.xlsx(list(data = d, targets = tg), path)
+  fit <- calibrate_from_excel(path, "qualified", "initial_weight",
+                              data_sheet = "data", targets_sheet = "targets")
+  fit$target_check
+}
+}

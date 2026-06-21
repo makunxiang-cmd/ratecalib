@@ -25,6 +25,11 @@
 #' @param verbose Whether to print OSQP solver information.
 #'
 #' @return An object of class `pass_rate_calibration`.
+#' @examples
+#' d <- example_rate_data(300)
+#' fit <- calibrate_rates(d, "qualified", "initial_weight",
+#'                        groups = list(sex = c(M = 0.72, F = 0.68)))
+#' summary(fit)
 #' @export
 calibrate_rates <- function(
     data,
@@ -115,6 +120,9 @@ calibrate_rates <- function(
 #'
 #' @return A list of class `ratecalib_check` with `ok`, `errors`, `warnings`,
 #'   `overview`, `group_summary` and `target_support`.
+#' @examples
+#' d <- example_rate_data(300)
+#' check_calibration_data(d, "qualified", "initial_weight", group_vars = "sex")
 #' @export
 check_calibration_data <- function(data, outcome, weight, group_vars,
                                    targets = NULL, consistency_tol = 0.01) {
@@ -284,6 +292,9 @@ print.ratecalib_check <- function(x, ...) {
 #' @param n Sample size.
 #' @param seed Random seed.
 #' @return A data frame.
+#' @examples
+#' d <- example_rate_data(200)
+#' head(d)
 #' @export
 example_rate_data <- function(n = 5000L, seed = 2026L) {
   set.seed(seed)
