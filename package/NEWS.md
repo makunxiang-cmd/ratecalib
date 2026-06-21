@@ -1,5 +1,10 @@
 # ratecalib (开发中)
 
+- **新增 Excel 输入/输出（方法论路线图 §四）**：`read_calibration_data()`、`read_targets_xlsx()`
+  （表头容错，支持英文别名与中文表头）、`calibrate_from_excel()`（一步读数据+目标并求解，自动从
+  目标表推断分组变量）、`export_calibration_xlsx()`（导出 data/target_check/margin_check/
+  diagnostics/settings 多工作表）。依赖 `openxlsx` 走 `Suggests`，运行时 `requireNamespace()`
+  守卫，缺失即报安装提示；不引入任何核心依赖。中文表头别名在源码中以 Unicode 码点构造，保持 R 代码纯 ASCII。
 - **新增 `calibration_feasibility()`：求解前目标可行性预检**（方法论路线图 §三，收窄版）。
   做两件确定性、闭式的检查：(1) **总体–分组一致性恒等式**——某分组变量的每个水平都被目标覆盖时，
   总体率被唯一确定（`Σ W_ℓ·r_ℓ / W`），据此抓出与显式总体目标或另一完整变量互相矛盾的目标；
