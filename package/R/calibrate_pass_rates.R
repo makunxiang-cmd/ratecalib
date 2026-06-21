@@ -140,6 +140,17 @@ calibrate_pass_rates <- function(
          call. = FALSE)
   }
 
+  # `value` selects which category a proportion target measures. A proportion
+  # target measures the share of value_var == value; it defaults to the legacy
+  # pass rate (value_var = outcome, value = 1) so old target tables are
+  # unchanged. value_var/value are not used by mean/total.
+  if (!"value" %in% names(targets)) targets$value <- NA_character_
+  targets$value <- as.character(targets$value)
+  is_prop <- targets$statistic == "proportion"
+  no_vv <- is_prop & (is.na(targets$value_var) | targets$value_var == "")
+  targets$value_var[no_vv] <- outcome
+  targets$value[is_prop & is.na(targets$value)] <- "1"
+
   if (nrow(targets) < 1L) stop("targets must contain at least one row.", call. = FALSE)
   if (any(!is.finite(targets$target_rate))) {
     stop("All target_rate values must be finite.", call. = FALSE)
@@ -155,13 +166,27 @@ calibrate_pass_rates <- function(
     stop("priority must contain finite positive numbers.", call. = FALSE)
   }
 
-  target_key <- paste(targets$variable, targets$level, sep = "\u001F")
+  target_key <- paste(targets$variable, targets$level, targets$statistic, targets$value_var, targets$value, sep = "\u001F")
   if (anyDuplicated(target_key)) {
-    stop("targets contains duplicate variable-level rows.", call. = FALSE)
+    stop("targets contains duplicate target rows.", call. = FALSE)
   }
 
-  # Aggregate to demographic cell x outcome.
-  key_data <- data[group_vars]
+  # Categorical variables (other than the outcome and grouping variables) named
+  # by proportion targets must split the aggregation cells so each cell is pure
+  # in the measured indicator; otherwise a single cell multiplier could not
+  # change the within-group share. No extra splits when only the legacy outcome
+  # proportion is used, so old behaviour is preserved byte for byte.
+  extra_split_vars <- setdiff(unique(targets$value_var[is_prop]),
+                              c(group_vars, outcome))
+  missing_split <- setdiff(extra_split_vars, names(data))
+  if (length(missing_split)) {
+    stop("Proportion value_var(s) not found in data: ",
+         paste(missing_split, collapse = ", "), call. = FALSE)
+  }
+
+  # Aggregate to demographic cell x outcome (x any extra proportion splits).
+  cell_vars <- unique(c(group_vars, extra_split_vars))
+  key_data <- data[cell_vars]
   key_data[] <- lapply(key_data, as.character)
   key_parts <- c(key_data, list(.outcome = as.character(y)))
   aggregate_key <- do.call(paste, c(key_parts, list(sep = "\u001F")))
@@ -171,7 +196,7 @@ calibrate_pass_rates <- function(
   aggregate_names <- rownames(D_matrix)
   first_index <- match(aggregate_names, aggregate_key)
 
-  cells <- data[first_index, group_vars, drop = FALSE]
+  cells <- data[first_index, cell_vars, drop = FALSE]
   cells[] <- lapply(cells, as.character)
   cells$.outcome <- y[first_index]
   cells$.initial_total <- D
@@ -259,6 +284,17 @@ calibrate_pass_rates <- function(
     cells[[v]] == lev
   }
 
+  # Per-cell 0/1 indicator that a proportion target's measured variable equals
+  # its value. The outcome uses the numeric .outcome column; any other variable
+  # is one of the (pure) cell-defining columns.
+  prop_indicator <- function(vv, val) {
+    if (vv == outcome) {
+      as.numeric(cells$.outcome == as.numeric(val))
+    } else {
+      as.numeric(cells[[vv]] == val)
+    }
+  }
+
   for (j in seq_len(nrow(targets))) {
     v <- targets$variable[j]
     lev <- targets$level[j]
@@ -279,9 +315,11 @@ calibrate_pass_rates <- function(
     target_sizes[j] <- sum(D[mask])
     stat <- targets$statistic[j]
     if (stat == "proportion") {
-      # sum x_c * I(group) * (outcome_c - target) = 0  ->  group rate = target
-      initial_rates[j] <- sum(D[mask] * cells$.outcome[mask]) / target_sizes[j]
-      rate_rows[[j]] <- as.numeric(mask) * (cells$.outcome - r)
+      # sum x_c * I(group) * (ind_c - target) = 0  ->  group share = target,
+      # where ind_c is the per-cell indicator of value_var == value.
+      ind <- prop_indicator(targets$value_var[j], targets$value[j])
+      initial_rates[j] <- sum(D[mask] * ind[mask]) / target_sizes[j]
+      rate_rows[[j]] <- as.numeric(mask) * (ind - r)
       rate_rhs[j] <- 0
     } else {
       wbar <- cell_value_sum[[targets$value_var[j]]] / D
@@ -420,7 +458,8 @@ calibrate_pass_rates <- function(
     mask <- build_mask(targets$variable[j], targets$level[j])
     stat <- targets$statistic[j]
     if (stat == "proportion") {
-      achieved_rates[j] <- sum(x[mask] * cells$.outcome[mask]) / sum(x[mask])
+      ind <- prop_indicator(targets$value_var[j], targets$value[j])
+      achieved_rates[j] <- sum(x[mask] * ind[mask]) / sum(x[mask])
     } else {
       wbar <- cell_value_sum[[targets$value_var[j]]] / D
       achieved_rates[j] <- if (stat == "mean") {
@@ -436,6 +475,7 @@ calibrate_pass_rates <- function(
     level = targets$level,
     statistic = targets$statistic,
     value_var = targets$value_var,
+    value = targets$value,
     target_rate = targets$target_rate,
     initial_rate = initial_rates,
     achieved_rate = achieved_rates,

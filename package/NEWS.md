@@ -10,9 +10,13 @@
   不改聚合结构。`make_rate_targets()` 新增 `means` / `totals` 参数（data.frame：variable/level/value_var/
   target）。`target_check` 增 `statistic`/`value_var` 列；`target_rate` 的 0–1 校验仅对 proportion 生效。
   当前均值/总量仅 `mode = "exact"`（避免 soft 模式下「率 vs 数值」惩罚尺度不可比）。
-  **重要边界（批判性修正）**：路线图原草图建议「按分组单元聚合 + 存内部比例 ā_c、不按取值拆单元」处理
-  proportion，但这**无法复现现有 0/1 合格率的控制力**（现按 outcome 拆纯单元）；因此「任意分类变量的占比」
-  需重构聚合层拆单元，**本轮暂缓**——可用替代：把 `I(Z==v)` 预编码成 outcome 走现有路径。
+- **占比泛化到任意分类变量（方法论路线图 §二 比例部分）**：proportion 目标现可分离「分组」（variable/level，
+  定义 mask）与「被测量」（新列 `value_var`/`value`，即「value_var==value 的占比」）。为保证完全控制力，
+  被测量的分类变量会被加入聚合键**拆单元**（每单元在该指示变量上纯）；遗留合格率即 `value_var=outcome,
+  value=1` 的特例，**逐字节兼容**（无非 outcome 占比时不增加任何拆分）。`target_check` 增 `value` 列；
+  重复行判定改为按 variable/level/statistic/value_var/value 全键（故同一变量不同取值的两个占比目标可共存）。
+  这修正了路线图原草图「按分组单元聚合 + 存内部比例 ā_c、不拆单元」的设计隐患（那样无法复现 0/1 合格率
+  的控制力）：连续量用充分统计量（凸包控制），分类占比按指示变量拆纯单元（完全控制）。
 - **新增交互（cross-classification）目标（方法论路线图 §六）**：支持校准「城镇×男性」这类交叉分组的
   合格率。目标表用冒号连接的复合 key——`variable = "sex:residence"`、`level = "M:Urban"`，内部按 `:`
   拆分对各分量取交集 mask。`make_rate_targets()` 新增 `interactions`（与 `interaction_priority`）参数：
