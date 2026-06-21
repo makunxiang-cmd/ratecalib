@@ -12,7 +12,8 @@ make_rate_targets(
   group_priority = 1,
   interaction_priority = 1,
   means = NULL,
-  totals = NULL
+  totals = NULL,
+  proportions = NULL
 )
 }
 \arguments{
@@ -37,8 +38,13 @@ vector indexed by interaction key.}
 
 \item{means, totals}{Optional data frames of mean/total targets for a numeric
 variable, each with columns \code{variable}, \code{level}, \code{value_var} and \code{target}
-(plus optional \code{priority}). When supplied, the result gains \code{statistic} and
-\code{value_var} columns; proportion rows are tagged \code{statistic = "proportion"}.}
+(plus optional \code{priority}). When supplied, the result gains \code{statistic},
+\code{value_var} and \code{value} columns; proportion rows are tagged
+\code{statistic = "proportion"}.}
+
+\item{proportions}{Optional data frame of proportion targets for a value of a
+categorical variable, with columns \code{variable}, \code{level}, \code{value_var},
+\code{value} and \code{target} (plus optional \code{priority}).}
 }
 \value{
 A data frame suitable for \code{calibrate_pass_rates()}.

@@ -56,6 +56,20 @@ calibration_feasibility <- function(data, outcome, weight, group_vars,
 
   is_overall <- function(v) v %in% c(".overall", "overall", "TOTAL")
 
+  # This precheck only reasons about simple proportion-of-outcome targets on a
+  # single dimension. Interaction (colon) keys, mean/total targets and
+  # proportions of a non-outcome value are skipped (not misjudged).
+  col_or_na <- function(nm) {
+    if (nm %in% names(targets)) as.character(targets[[nm]])
+    else rep(NA_character_, nrow(targets))
+  }
+  stat <- col_or_na("statistic"); stat[is.na(stat) | stat == ""] <- "proportion"
+  vv <- col_or_na("value_var"); val <- col_or_na("value")
+  analyzable <- stat == "proportion" &
+    (is.na(vv) | vv == "" | vv == outcome) &
+    (is.na(val) | val == "1") &
+    !grepl(":", as.character(targets$variable), fixed = TRUE)
+
   # Per-(variable, level) initial pass / fail / total weight, and the achievable
   # rate interval given fixed group total and multiplier bounds.
   block <- function(mask) {
@@ -76,7 +90,7 @@ calibration_feasibility <- function(data, outcome, weight, group_vars,
     max_achievable = numeric(), within_range = logical(),
     stringsAsFactors = FALSE
   )
-  for (i in seq_len(nrow(targets))) {
+  for (i in which(analyzable)) {
     v <- as.character(targets$variable[i])
     lev <- as.character(targets$level[i])
     r <- as.numeric(targets$target_rate[i])
@@ -95,8 +109,9 @@ calibration_feasibility <- function(data, outcome, weight, group_vars,
   pins <- data.frame(source = character(), implied_overall = numeric(),
                      stringsAsFactors = FALSE)
 
-  # explicit overall target, if any
-  ov <- targets[vapply(targets$variable, is_overall, logical(1)), , drop = FALSE]
+  # explicit overall target, if any (only simple proportion-of-outcome ones)
+  ov <- targets[analyzable & vapply(targets$variable, is_overall, logical(1)), ,
+                drop = FALSE]
   if (nrow(ov)) {
     pins <- rbind(pins, data.frame(source = ".overall",
                                    implied_overall = as.numeric(ov$target_rate[1]),
@@ -105,7 +120,7 @@ calibration_feasibility <- function(data, outcome, weight, group_vars,
 
   # a grouping variable pins the overall rate only if every data level is targeted
   for (v in group_vars) {
-    sub <- targets[as.character(targets$variable) == v, , drop = FALSE]
+    sub <- targets[analyzable & as.character(targets$variable) == v, , drop = FALSE]
     if (!nrow(sub)) next
     data_levels <- unique(as.character(data[[v]]))
     if (!all(data_levels %in% as.character(sub$level))) next  # incomplete
@@ -138,6 +153,11 @@ calibration_feasibility <- function(data, outcome, weight, group_vars,
     "The consistency identity holds because calibration preserves the initial weight marginals; a conflict is a hard infeasibility under mode='exact' and an unachievable combination under mode='soft'.",
     "For exact feasibility, the final word is the solver."
   )
+  if (any(!analyzable)) {
+    note <- c(note, sprintf(
+      "%d target(s) are NOT analysed by this precheck (interaction keys, mean/total, or proportions of a non-outcome value).",
+      sum(!analyzable)))
+  }
 
   structure(list(
     consistency = list(pins = pins, consistent = consistent, detail = detail),

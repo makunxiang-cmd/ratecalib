@@ -15,8 +15,12 @@
 #'   vector indexed by interaction key.
 #' @param means,totals Optional data frames of mean/total targets for a numeric
 #'   variable, each with columns `variable`, `level`, `value_var` and `target`
-#'   (plus optional `priority`). When supplied, the result gains `statistic` and
-#'   `value_var` columns; proportion rows are tagged `statistic = "proportion"`.
+#'   (plus optional `priority`). When supplied, the result gains `statistic`,
+#'   `value_var` and `value` columns; proportion rows are tagged
+#'   `statistic = "proportion"`.
+#' @param proportions Optional data frame of proportion targets for a value of a
+#'   categorical variable, with columns `variable`, `level`, `value_var`,
+#'   `value` and `target` (plus optional `priority`).
 #'
 #' @return A data frame suitable for `calibrate_pass_rates()`.
 #' @export
@@ -28,7 +32,8 @@ make_rate_targets <- function(
     group_priority = 1,
     interaction_priority = 1,
     means = NULL,
-    totals = NULL
+    totals = NULL,
+    proportions = NULL
 ) {
   if (!is.list(groups) ||
       (length(groups) > 0L && (is.null(names(groups)) || any(names(groups) == "")))) {
@@ -132,15 +137,17 @@ make_rate_targets <- function(
     ))
   }
 
-  # Optional mean/total value targets. Their presence switches the table to the
-  # extended schema with statistic and value_var columns.
-  if (!is.null(means) || !is.null(totals)) {
-    out$statistic <- "proportion"
-    out$value_var <- NA_character_
+  # Optional mean/total/proportion value targets. Their presence switches the
+  # table to the extended schema with statistic, value_var and value columns.
+  if (!is.null(means) || !is.null(totals) || !is.null(proportions)) {
+    out$statistic <- rep("proportion", nrow(out))
+    out$value_var <- rep(NA_character_, nrow(out))
+    out$value <- rep(NA_character_, nrow(out))
     add_value_targets <- function(out, df, stat) {
       if (is.null(df)) return(out)
       df <- as.data.frame(df, stringsAsFactors = FALSE)
       needed <- c("variable", "level", "value_var", "target")
+      if (stat == "proportion") needed <- c(needed, "value")
       if (!all(needed %in% names(df))) {
         stop(stat, " must have columns: ", paste(needed, collapse = ", "),
              call. = FALSE)
@@ -156,11 +163,13 @@ make_rate_targets <- function(
         priority = prio,
         statistic = stat,
         value_var = as.character(df$value_var),
+        value = if (stat == "proportion") as.character(df$value) else NA_character_,
         stringsAsFactors = FALSE
       ))
     }
     out <- add_value_targets(out, means, "mean")
     out <- add_value_targets(out, totals, "total")
+    out <- add_value_targets(out, proportions, "proportion")
   }
 
   rownames(out) <- NULL

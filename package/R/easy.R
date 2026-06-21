@@ -183,10 +183,26 @@ check_calibration_data <- function(data, outcome, weight, group_vars,
       target_support <- targets
       target_support$supported <- TRUE
       target_support$reason <- ""
+      # The outcome-based support check only applies to simple
+      # proportion-of-outcome targets on a single dimension. Interaction keys,
+      # mean/total targets and proportions of a non-outcome value are left
+      # marked supported with an explanatory reason rather than misjudged.
+      stat_col <- if ("statistic" %in% names(targets)) as.character(targets$statistic) else rep("proportion", nrow(targets))
+      stat_col[is.na(stat_col) | stat_col == ""] <- "proportion"
+      vv_col <- if ("value_var" %in% names(targets)) as.character(targets$value_var) else rep(NA_character_, nrow(targets))
+      val_col <- if ("value" %in% names(targets)) as.character(targets$value) else rep(NA_character_, nrow(targets))
       for (i in seq_len(nrow(targets))) {
         v <- as.character(targets$variable[i])
         lev <- as.character(targets$level[i])
         r <- as.numeric(targets$target_rate[i])
+        simple <- stat_col[i] == "proportion" &&
+          (is.na(vv_col[i]) || vv_col[i] == "" || vv_col[i] == outcome) &&
+          (is.na(val_col[i]) || val_col[i] == "1") &&
+          !grepl(":", v, fixed = TRUE)
+        if (!simple) {
+          target_support$reason[i] <- "not checked (interaction or non-outcome statistic target)"
+          next
+        }
         if (v %in% c(".overall", "overall", "TOTAL")) {
           mask <- rep(TRUE, nrow(data))
         } else if (!v %in% group_vars) {

@@ -1,5 +1,10 @@
 # ratecalib (开发中)
 
+- **`check_calibration_data()` 与 `calibration_feasibility()` 兼容进阶目标类型**：二者原只针对单维
+  proportion-on-outcome 目标，遇交互（冒号 key）、mean/total、非-outcome 占比目标会误判；现改为只分析
+  简单目标、跳过其余并在 `note`/`reason` 中说明，不再误报。
+- **`make_rate_targets()` 新增 `proportions=` 便捷接口**（对称于 `means=`/`totals=`）：data.frame 列
+  variable/level/value_var/value/target，构造任意分类取值的占比目标。
 - **新增重复权重方差估计（方法论路线图 §七 + §五 进度条）**：`calibrate_replicate_weights(fit,
   repweights, scale, rscales, progress)` 对每套重复权重（bootstrap/jackknife/BRR，外部生成）以 `fit`
   的同一目标与设置重新校准（目标自 `fit$target_check` 重建），得校准后重复权重矩阵；`replicate_variance(
