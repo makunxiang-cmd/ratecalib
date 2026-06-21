@@ -11,7 +11,8 @@ Description: Calibration weighting for binary-outcome pass rates against
     pre-solve data checks, target-table construction, effective sample size
     and design-effect diagnostics, and example data. The solver works on a
     bounded convex quadratic program over demographic-cell-by-outcome
-    aggregates for efficiency on large samples.
+    aggregates for efficiency on large samples. Methods follow the calibration
+    approach of Deville and Saerndal (1992) <doi:10.1080/01621459.1992.10475217>.
 License: MIT + file LICENSE
 URL: https://github.com/makunxiang-cmd/ratecalib
 BugReports: https://github.com/makunxiang-cmd/ratecalib/issues
