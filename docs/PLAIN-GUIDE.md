@@ -875,6 +875,11 @@ Särndal、Swensson 与 Wretman 的教材是标准参考。
 
 # 问题速查
 
+分两部分。先按现象快速定位，再按函数给出全套报错原文和应对。报错信息都是英文，
+下表照原文列出，方便你直接对照屏幕。带省略号的地方表示程序会填进具体的列名、数值或类别。
+
+## 按现象快速定位
+
 | 现象 | 多半的原因 | 怎么办 |
 |------|-----------|--------|
 | 精确模式报无解或不可行 | 目标自相矛盾，或某组全合格全不合格，或上下限太窄 | 先跑 calibration_feasibility 预检；改软模式；放宽 lower 和 upper |
@@ -891,6 +896,136 @@ Särndal、Swensson 与 Wretman 的教材是标准参考。
 | 想要权重恒正或硬性封顶 | 距离选择问题 | 要恒正用 distance 设 raking，要封顶用 logit |
 | 想知道估计有多稳 | 需要标准误 | 用 calibrate_replicate_weights 配 replicate_variance |
 | 分组变量是数字编码 | 不确定支不支持 | 支持，目标类别按文字写如 c("1" = 0.72)；分组须离散，连续值改用均值或总量目标 |
+
+## 全套报错对照手册
+
+下面按报出错误的函数分组。报错原文一字不差，旁边给出触发条件和应对。
+
+### 求解器 calibrate_pass_rates 和一步式 calibrate_rates 的输入校验
+
+| 报错原文 | 触发条件 | 应对 |
+|---------|---------|------|
+| `Package 'osqp' is required. Run install.packages('osqp').` | 没装求解器 osqp | 运行 install.packages("osqp") |
+| `Package 'Matrix' is required. Run install.packages('Matrix').` | 没装 Matrix | 运行 install.packages("Matrix") |
+| `data must be a data frame.` | data 传的不是数据框 | 把数据读成 data.frame 再传 |
+| `outcome must be one column name.` | outcome 不是单个列名字符串 | 写成一个列名，如 outcome = "qualified" |
+| `weight must be one column name.` | weight 不是单个列名字符串 | 写成一个列名，如 weight = "initial_weight" |
+| `group_vars must contain at least one column name.` | 没给分组变量 | 至少给一个分组变量名 |
+| `group_vars must not contain duplicates.` | 分组变量名有重复 | 去掉重复项 |
+| `Missing columns in data: ...` | outcome/weight/分组列在数据里找不到 | 核对列名拼写，与数据完全一致 |
+| `targets is missing columns: ...` | 目标表缺 variable/level/target_rate | 补齐这三列，用 make_rate_targets 最稳 |
+| `Use scalar bounds satisfying 0 <= lower <= 1 <= upper and lower < upper.` | 上下限不合法 | 让 lower 不超过 1、upper 不小于 1、且 lower 小于 upper |
+| `lambda must be one finite positive number.` | lambda 非正或非有限 | 给一个正数，默认 1e4 |
+| `Initial weights must all be finite and strictly positive.` | 初始权重含 0、负数、缺失或无穷 | 清洗权重列，确保全为正且有限 |
+| `The outcome column must contain only 0 and 1.` | 结果列不是纯 0/1 | 先编码成 0/1；若要算某取值占比改用 value_var 和 value |
+| `Grouping variables contain missing values. Recode missing values as a category first.` | 分组列有缺失 | 把缺失归成一个明确类别，如 "未知" |
+| `targets must contain at least one row.` | 目标表是空的 | 至少给一个目标 |
+| `All target_rate values must be finite.` | 目标值含缺失或无穷 | 检查目标列 |
+| `proportion target_rate values must be between 0 and 1.` | 占比类目标不在 0 到 1 之间 | 占比写成小数；若这是均值或总量目标，要标对 statistic |
+| `priority must contain finite positive numbers.` | 优先级非正或非有限 | 优先级填正数 |
+| `statistic must be one of: proportion, mean, total` | statistic 列写了别的词 | 只能填这三个之一 |
+| `Targets with statistic 'mean' or 'total' require a value_var.` | 均值或总量目标没指定数值列 | 补 value_var，指向要校准的数值列 |
+| `targets contains duplicate target rows.` | 有两行目标完全重复 | 去重；同变量不同取值的占比目标算不同行，不冲突 |
+
+### 目标行构造阶段的报错
+
+| 报错原文 | 触发条件 | 应对 |
+|---------|---------|------|
+| `Proportion value_var(s) not found in data: ...` | 占比目标的 value_var 不是数据里的列 | 核对列名 |
+| `value_var '...' is not a column in data.` | 均值或总量目标的 value_var 找不到 | 核对列名 |
+| `value_var '...' must be numeric and free of missing values.` | 均值或总量的数值列含非数字或缺失 | 清洗该数值列 |
+| `Interaction target '...' = '...' has a mismatched number of component variables and levels.` | 交互目标冒号两边数量对不上，如变量两段、类别一段 | 让 variable 和 level 的冒号段数一致 |
+| `Interaction target variable(s) not in group_vars: ...` | 交互目标里的某个变量没列进 group_vars | 把它加进 group_vars |
+| `Target variable '...' is not in group_vars. Use '.overall' for the total target.` | 目标里的变量既不是分组变量也不是总体 | 把变量加进 group_vars，或总体目标用 .overall |
+| `No observed sample cell for target: ... = ...` | 目标指向的类别在数据里没有样本 | 核对类别名，或去掉这个没样本的目标 |
+| `distance='logit' requires lower < 1 < upper.` | 用 logit 距离但上下限没把 1 夹在中间 | 让 lower 小于 1、upper 大于 1 |
+
+### 求解失败的报错
+
+| 报错原文 | 触发条件 | 应对 |
+|---------|---------|------|
+| `Optimization did not solve successfully. OSQP status: ...` 后接精确模式提示 `The targets may be mutually inconsistent or the bounds may be too narrow. Try mode='soft', or widen lower/upper.` | chi2 精确模式无解 | 先跑可行性预检；改软模式；放宽上下限 |
+| 同上但软模式提示 `Try widening lower/upper or reducing numerical strictness.` | chi2 软模式数值上没解出 | 放宽上下限，或检查数据是否异常 |
+| `The raking dual iteration did not converge ... The exact targets may be infeasible or unreachable, for example an all-pass or all-fail group; try mode='soft'.` | raking 精确模式不收敛，目标多半不可达 | 改软模式；核对是否有全合格全不合格的组 |
+| `The logit dual iteration did not converge ... within (lower, upper); try widening the bounds or ... mode='soft'.` | logit 精确模式在上下限内做不到 | 放宽上下限或改软模式 |
+| `The raking/logit dual iteration did not converge ... Try a smaller lambda or distance='chi2'.` | raking 或 logit 软模式没收敛 | 调小 lambda，或改用 chi2 |
+
+### 目标表构造 make_rate_targets 的报错
+
+| 报错原文 | 触发条件 | 应对 |
+|---------|---------|------|
+| `groups must be a named list.` | groups 不是带名字的列表 | 写成 list(sex = c(M = 0.7, F = 0.68)) 这种形式 |
+| `overall must be NULL or one number between 0 and 1.` | 总体目标不在 0 到 1 | 填 0 到 1 之间的小数，或不设则留空 |
+| `overall_priority must be one finite positive number.` | 总体优先级非正 | 填一个正数 |
+| `group_priority must be a scalar or a named vector.` | 分组优先级格式不对 | 填一个数，或按变量命名的向量 |
+| `Each groups element must be a named numeric vector: ...` | 某分组的目标没给类别名 | 写成 c(M = 0.7, F = 0.68)，类别要带名字 |
+| `All rates in groups[['...']] must be between 0 and 1.` | 某分组目标率越界 | 改成 0 到 1 之间 |
+| `Missing or invalid group_priority for variable: ...` | 缺某变量的优先级或为非正 | 给该变量一个正的优先级 |
+| `interactions must be a named list.` | 交互目标格式不对 | 写成 list("sex:residence" = c("M:Urban" = 0.7)) |
+| `Each interactions element must be a named numeric vector: ...` | 交互目标没给类别组合名 | 类别组合要带名字，如 "M:Urban" = 0.7 |
+| `All rates in interactions[['...']] must be between 0 and 1.` | 交互目标率越界 | 改成 0 到 1 之间 |
+| `interaction_priority must be a scalar or a named vector.` | 交互优先级格式不对 | 填一个数或按交互键命名的向量 |
+| `Missing or invalid interaction_priority for: ...` | 缺某交互的优先级或为非正 | 给该交互一个正的优先级 |
+| `mean/total/proportion must have columns: ...` | means、totals 或 proportions 的小表缺列 | 按要求补 variable、level、value_var、target 等列 |
+| `All mean/total/proportion target values must be finite.` | 这些目标的 target 值含缺失或无穷 | 检查 target 列 |
+
+### 数据检查 check_calibration_data 报告里的条目
+
+这个函数不直接中断，而是把问题装进报告的 errors、warnings 和 target_support 里返回；
+一步式 `calibrate_rates` 在 check 为真时，遇到 errors 会中断、遇到 warnings 会提醒。
+
+| 报告里的文字 | 含义 | 应对 |
+|------------|------|------|
+| `Missing columns: ...` | 必要的列缺失 | 补齐列 |
+| `Initial weights contain missing or non-finite values.` | 权重有缺失或无穷 | 清洗权重 |
+| `All initial weights must be greater than 0.` | 权重有非正值 | 改成正数 |
+| `The outcome column must contain only 0 and 1.` | 结果列不是 0/1 | 编码成 0/1 |
+| `Grouping variables contain missing values; recode missing values as an explicit category first.` | 分组列有缺失 | 缺失归成明确类别 |
+| `targets must contain the columns variable, level and target_rate.` | 目标表缺列 | 补齐 |
+| `There are N target(s) not supported by the data; see target_support.` | 有目标数据撑不起 | 看 target_support 逐条排查 |
+| 警告 `... = ... contains only passing/failing units; its target rate cannot be changed by reweighting within the group.` | 某组全合格或全不合格 | 该组合格率调不动，删掉它的目标或补样本 |
+| 警告 `Targets imply conflicting overall rates ...` | 分组目标隐含的总体率与显式总体目标实质性不一致 | 对齐总体目标，或改软模式；细看用 calibration_feasibility |
+| target_support 里 `target variable is not in group_vars` | 目标变量没列进分组 | 加进 group_vars |
+| target_support 里 `no sample in this category` | 该类别没样本 | 核对类别名或去掉该目标 |
+| target_support 里 `group is all 0; a target above 0 is unreachable` | 该组全不合格 | 调不动，删目标或补样本 |
+| target_support 里 `group is all 1; a target below 1 is unreachable` | 该组全合格 | 同上 |
+| target_support 里 `not checked (interaction or non-outcome statistic target)` | 该目标是交互或非合格率统计量，检查会跳过它 | 属正常，不是错误 |
+
+### 可行性预检 calibration_feasibility 的报错
+
+| 报错原文 | 触发条件 | 应对 |
+|---------|---------|------|
+| `data must be a data frame.` | data 不是数据框 | 传 data.frame |
+| `Missing columns: ...` | 引用的列不存在 | 核对列名 |
+| `targets must contain the columns variable, level and target_rate.` | 目标表缺列 | 补齐 |
+
+### Excel 读写函数的报错
+
+| 报错原文 | 触发条件 | 应对 |
+|---------|---------|------|
+| `Reading or writing Excel files requires the 'openxlsx' package. Install it with install.packages("openxlsx").` | 没装 openxlsx | 运行 install.packages("openxlsx") |
+| `File not found: ...` | 路径里的文件不存在 | 核对文件名和工作目录 |
+| `The target sheet is missing required column(s): ...` | 目标工作表缺必要列 | 补齐 variable、level、target_rate，表头中英文均可 |
+| `fit must be a pass_rate_calibration object.` | 导出时传的不是校准结果 | 传 calibrate_pass_rates 或 calibrate_rates 的返回值 |
+
+### 重复权重方差 calibrate_replicate_weights 和 replicate_variance 的报错
+
+| 报错原文 | 触发条件 | 应对 |
+|---------|---------|------|
+| `fit must be a pass_rate_calibration object.` | 第一个参数不是校准结果 | 传校准返回的 fit |
+| `repweights must have one row per observation in fit.` | 重复权重矩阵行数和样本数不符 | 让矩阵每行对应一个样本 |
+| `repweights must have at least one column.` | 没有任何一套重复权重 | 至少给一列 |
+| `Replicate weights must all be finite and positive.` | 重复权重含非正或非有限值 | 清洗重复权重 |
+| `rscales must have one value per replicate.` | rscales 长度和重复套数不符 | 让 rscales 每套一个值 |
+| `Calibration failed for replicate r: ... Consider mode='soft' for robust replicate calibration.` | 某套重复权重在精确模式下重校准失败 | 改用软模式跑重复校准更稳 |
+| `object must be a replicate_calibration object.` | replicate_variance 第一个参数不对 | 传 calibrate_replicate_weights 的返回值 |
+| `x must have one value per observation.` | 估计变量长度和样本数不符 | 让 x 每个样本一个值 |
+
+### 提取诊断 calibration_diagnostics 的报错
+
+| 报错原文 | 触发条件 | 应对 |
+|---------|---------|------|
+| `x must be a pass_rate_calibration object.` | 传的不是校准结果 | 传校准返回的 fit |
 
 ---
 
