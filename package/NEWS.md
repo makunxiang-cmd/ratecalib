@@ -1,5 +1,9 @@
 # ratecalib (开发中)
 
+- **mean/total 目标现支持 soft 模式**：不再限 exact。为解决「率 vs 数值量级」惩罚不可比的问题，
+  mean/total 的目标行惩罚按目标量级 `|target|` 归一化（即惩罚相对误差），与率的绝对误差可比；
+  proportion 仍用绝对率误差。total 的非零右端在 chi2 soft 下补一个线性项 `q -= 2 RᵀW·rhs`。
+  至此 proportion/mean/total × soft/exact × chi2/raking/logit 组合全部可用。
 - **`check_calibration_data()` 与 `calibration_feasibility()` 兼容进阶目标类型**：二者原只针对单维
   proportion-on-outcome 目标，遇交互（冒号 key）、mean/total、非-outcome 占比目标会误判；现改为只分析
   简单目标、跳过其余并在 `note`/`reason` 中说明，不再误报。
@@ -16,7 +20,7 @@
   `Omega^{-1} = size^2/(2*lambda*grand_total*priority)` 软化（与 chi2 soft 惩罚强度语义一致，
   lambda 越大越接近 exact）。对偶 Newton 求解器加一个按约束的 ridge 向量 `reg` 即实现
   （`F = Ax - t + reg*lambda`，`J` 加 `diag(reg)`，正定更稳）。soft 下目标不可达（如全合格组）也总有解、
-  不再报错。（mean/total 仍限 exact——其 soft 惩罚在数值量级下尺度不可比，留作单独问题。）
+  不再报错。（mean/total 的 soft 模式见上方条目。）
 - **新增标准 S3 提取方法**：`weights()` 取校准权重向量、`as.data.frame()` 取含校准权重列的数据框，
   避免用户手挖 `fit$data$weight_calibrated`。
 - **修复**：`stats` 之前虽全程以 `stats::` 调用却未声明在 `DESCRIPTION` 的 Imports（潜在依赖缺漏），

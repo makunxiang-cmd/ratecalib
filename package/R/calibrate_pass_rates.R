@@ -127,10 +127,6 @@ calibrate_pass_rates <- function(
          call. = FALSE)
   }
   is_value_stat <- targets$statistic %in% c("mean", "total")
-  if (any(is_value_stat) && mode != "exact") {
-    stop("statistic 'mean'/'total' currently supports mode='exact' only.",
-         call. = FALSE)
-  }
   if (any(is_value_stat & (is.na(targets$value_var) | targets$value_var == ""))) {
     stop("Targets with statistic 'mean' or 'total' require a value_var.",
          call. = FALSE)
@@ -337,6 +333,12 @@ calibrate_pass_rates <- function(
   R <- Matrix::Matrix(do.call(rbind, rate_rows), sparse = TRUE)
   rownames(R) <- make.unique(target_names)
 
+  # Soft-penalty scale per target: proportions use absolute rate error (scale 1);
+  # mean/total are normalized by their target magnitude so their penalty is a
+  # relative error, comparable to rate penalties when statistics are mixed.
+  pen_scale <- ifelse(targets$statistic == "proportion", 1,
+                      pmax(abs(targets$target_rate), 1e-8))
+
   if (distance == "chi2") {
     # Minimize sum_c (x_c - D_c)^2 / D_c.
     # OSQP form: 0.5*x'P*x + q'x.
@@ -344,9 +346,15 @@ calibrate_pass_rates <- function(
     q <- rep(-2, m)
 
     if (mode == "soft") {
-      penalty <- lambda * grand_total * targets$priority / (target_sizes^2)
+      penalty <- lambda * grand_total * targets$priority /
+        (target_sizes^2 * pen_scale^2)
       W <- Matrix::Diagonal(nrow(R), x = penalty)
       P <- P + 2 * crossprod(R, W %*% R)
+      # Linear term for penalized targets with a non-zero right-hand side
+      # (totals): penalize (Rx - rate_rhs)^2, not just (Rx)^2.
+      if (any(rate_rhs != 0)) {
+        q <- q - 2 * as.numeric(crossprod(R, W %*% rate_rhs))
+      }
     }
 
     I_m <- Matrix::Diagonal(m)
@@ -424,7 +432,8 @@ calibrate_pass_rates <- function(
     # Omega^{-1} = size^2 / (2 lambda grand_total priority), matching the chi2
     # soft penalty strength, so larger lambda approaches the exact solution.
     if (mode == "soft") {
-      penalty <- lambda * grand_total * targets$priority / (target_sizes^2)
+      penalty <- lambda * grand_total * targets$priority /
+        (target_sizes^2 * pen_scale^2)
       reg <- c(rep(0, nrow(M)), 1 / (2 * penalty))
     } else {
       reg <- rep(0, nrow(M) + nrow(R))

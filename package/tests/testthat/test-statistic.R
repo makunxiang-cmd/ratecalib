@@ -120,15 +120,44 @@ test_that("mean and total targets may exceed 1 without tripping rate validation"
   )
 })
 
-test_that("mean and total targets require exact mode for now", {
+test_that("mean targets now work in soft mode: margins hard, moves toward target", {
   d <- mk_data()
-  tg <- data.frame(variable = ".overall", level = ".all", target_rate = 50000,
+  init_mean <- sum(d$w * d$income) / sum(d$w)
+  target_mean <- init_mean * 1.05
+  tg <- data.frame(variable = ".overall", level = ".all", target_rate = target_mean,
                    statistic = "mean", value_var = "income", stringsAsFactors = FALSE)
-  expect_error(
-    calibrate_pass_rates(d, "qualified", "w", group_vars = "region",
-                         targets = tg, mode = "soft"),
-    "exact"
-  )
+  fit <- calibrate_pass_rates(d, "qualified", "w", group_vars = "region",
+                              targets = tg, mode = "soft", lower = 0.1, upper = 10)
+  expect_lt(max(abs(fit$margin_check$relative_change)), 1e-6)
+  w <- fit$data$weight_calibrated
+  achieved <- sum(w * d$income) / sum(w)
+  expect_lt(abs(achieved - target_mean), abs(init_mean - target_mean))
+})
+
+test_that("a stronger lambda drives a soft mean target close to the target", {
+  d <- mk_data()
+  init_mean <- sum(d$w * d$income) / sum(d$w)
+  target_mean <- init_mean * 1.05
+  tg <- data.frame(variable = ".overall", level = ".all", target_rate = target_mean,
+                   statistic = "mean", value_var = "income", stringsAsFactors = FALSE)
+  fit <- calibrate_pass_rates(d, "qualified", "w", group_vars = "region",
+                              targets = tg, mode = "soft", lower = 0.1, upper = 10,
+                              lambda = 1e7)
+  w <- fit$data$weight_calibrated
+  achieved <- sum(w * d$income) / sum(w)
+  expect_lt(abs(achieved - target_mean) / target_mean, 1e-3)  # within 0.1% relative
+})
+
+test_that("a soft total target returns a solution even when exact would be infeasible", {
+  d <- mk_data()
+  # a wildly large total is unreachable exactly, but soft must still solve
+  tg <- data.frame(variable = ".overall", level = ".all",
+                   target_rate = sum(d$w * d$income) * 100,
+                   statistic = "total", value_var = "income", stringsAsFactors = FALSE)
+  fit <- calibrate_pass_rates(d, "qualified", "w", group_vars = "region",
+                              targets = tg, mode = "soft", lower = 0.1, upper = 10)
+  expect_s3_class(fit, "pass_rate_calibration")
+  expect_true(all(fit$data$weight_calibrated > 0))
 })
 
 test_that("a mean/total target naming a non-existent value_var errors", {
