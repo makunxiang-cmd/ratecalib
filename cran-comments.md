@@ -14,6 +14,12 @@ Local check with `R CMD check --as-cran` gives:
 0 errors | 0 warnings | 1 note
 
 * The note is the standard "New submission" note.
+* The "possibly misspelled words in DESCRIPTION" (Deville, Saerndal) are author
+  surnames cited as the methodological reference; "pre" comes from "pre-solve".
+  These are correct and not misspellings.
+
+Checked on win-builder R-devel: Status 1 NOTE (the New submission note above),
+PDF manual built successfully.
 
 ## Test environments
 
