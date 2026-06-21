@@ -182,27 +182,49 @@ calibrate_pass_rates <- function(
   initial_rates <- numeric(nrow(targets))
   target_names <- character(nrow(targets))
 
+  # Build the cell mask for a target. Supports the overall target, single
+  # grouping variables, and colon-joined interaction (cross-classification)
+  # keys such as variable = "sex:residence", level = "M:Urban" (intersection of
+  # the component masks). Interaction targets add only a rate row, not a margin.
+  build_mask <- function(v, lev) {
+    if (v %in% c(".overall", "overall", "TOTAL")) return(rep(TRUE, m))
+    if (grepl(":", v, fixed = TRUE)) {
+      vars <- strsplit(v, ":", fixed = TRUE)[[1]]
+      levs <- strsplit(lev, ":", fixed = TRUE)[[1]]
+      if (length(vars) != length(levs)) {
+        stop("Interaction target '", v, "' = '", lev,
+             "' has a mismatched number of component variables and levels.",
+             call. = FALSE)
+      }
+      bad <- setdiff(vars, group_vars)
+      if (length(bad)) {
+        stop("Interaction target variable(s) not in group_vars: ",
+             paste(bad, collapse = ", "), call. = FALSE)
+      }
+      mask <- rep(TRUE, m)
+      for (i in seq_along(vars)) mask <- mask & (cells[[vars[i]]] == levs[i])
+      return(mask)
+    }
+    if (!v %in% group_vars) {
+      stop("Target variable '", v,
+           "' is not in group_vars. Use '.overall' for the total target.",
+           call. = FALSE)
+    }
+    cells[[v]] == lev
+  }
+
   for (j in seq_len(nrow(targets))) {
     v <- targets$variable[j]
     lev <- targets$level[j]
     r <- targets$target_rate[j]
 
-    is_overall <- v %in% c(".overall", "overall", "TOTAL")
-
-    if (is_overall) {
-      mask <- rep(TRUE, m)
+    if (v %in% c(".overall", "overall", "TOTAL")) {
       v <- ".overall"
       lev <- ".all"
       targets$variable[j] <- v
       targets$level[j] <- lev
-    } else {
-      if (!v %in% group_vars) {
-        stop("Target variable '", v,
-             "' is not in group_vars. Use '.overall' for the total target.",
-             call. = FALSE)
-      }
-      mask <- cells[[v]] == lev
     }
+    mask <- build_mask(v, lev)
 
     if (!any(mask)) {
       stop("No observed sample cell for target: ", v, " = ", lev, call. = FALSE)
@@ -333,9 +355,7 @@ calibrate_pass_rates <- function(
 
   achieved_rates <- numeric(nrow(targets))
   for (j in seq_len(nrow(targets))) {
-    v <- targets$variable[j]
-    lev <- targets$level[j]
-    mask <- if (v == ".overall") rep(TRUE, m) else cells[[v]] == lev
+    mask <- build_mask(targets$variable[j], targets$level[j])
     achieved_rates[j] <- sum(x[mask] * cells$.outcome[mask]) / sum(x[mask])
   }
 

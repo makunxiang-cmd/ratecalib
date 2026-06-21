@@ -7,8 +7,10 @@
 make_rate_targets(
   overall = NULL,
   groups = list(),
+  interactions = list(),
   overall_priority = 5,
-  group_priority = 1
+  group_priority = 1,
+  interaction_priority = 1
 )
 }
 \arguments{
@@ -17,10 +19,19 @@ make_rate_targets(
 \item{groups}{Named list. Each element is a named numeric vector containing
 target rates for one grouping variable.}
 
+\item{interactions}{Named list of cross-classification (interaction) targets.
+Each element name is a colon-joined set of grouping variables
+(e.g. \code{"sex:residence"}) and each element is a named numeric vector whose
+names are the matching colon-joined level combinations
+(e.g. \code{c("M:Urban" = 0.7)}).}
+
 \item{overall_priority}{Positive priority for the overall target.}
 
 \item{group_priority}{Either one positive scalar or a named positive vector
 indexed by group-variable name.}
+
+\item{interaction_priority}{Either one positive scalar or a named positive
+vector indexed by interaction key.}
 }
 \value{
 A data frame suitable for \code{calibrate_pass_rates()}.

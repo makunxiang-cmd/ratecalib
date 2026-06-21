@@ -1,5 +1,11 @@
 # ratecalib (开发中)
 
+- **新增交互（cross-classification）目标（方法论路线图 §六）**：支持校准「城镇×男性」这类交叉分组的
+  合格率。目标表用冒号连接的复合 key——`variable = "sex:residence"`、`level = "M:Urban"`，内部按 `:`
+  拆分对各分量取交集 mask。`make_rate_targets()` 新增 `interactions`（与 `interaction_priority`）参数：
+  `interactions = list("sex:residence" = c("M:Urban" = 0.7))`。交互目标**只新增目标行、不自动新增边际
+  等式**，soft/exact 均可用；各分量变量须在 `group_vars` 中，分量数须与水平数一致（否则报错）。
+  注意：水平值本身不可含冒号。
 - **新增距离函数族（方法论路线图 §一）：`distance` 参数**。`calibrate_pass_rates()` 与
   `calibrate_rates()` 新增 `distance = c("chi2", "raking", "logit")`。`"chi2"`（默认）为原线性/卡方
   距离，走 OSQP，**行为与旧版完全一致**（非破坏性）。`"raking"` 为熵距离 `g log g - g + 1`，解
