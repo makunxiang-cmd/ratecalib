@@ -1,5 +1,14 @@
 # ratecalib (开发中)
 
+- **新增目标统计量泛化：均值 / 总量（方法论路线图 §二，连续变量部分）**。目标表新增可选列
+  `statistic`（`"proportion"`/`"mean"`/`"total"`，缺省 `"proportion"`，**向后兼容**）与 `value_var`
+  （数值列名）。均值/总量用单元级充分统计量 `w̄_c = Σ(d·W)/D_c` 在现有单元上加线性目标行实现，数学正确、
+  不改聚合结构。`make_rate_targets()` 新增 `means` / `totals` 参数（data.frame：variable/level/value_var/
+  target）。`target_check` 增 `statistic`/`value_var` 列；`target_rate` 的 0–1 校验仅对 proportion 生效。
+  当前均值/总量仅 `mode = "exact"`（避免 soft 模式下「率 vs 数值」惩罚尺度不可比）。
+  **重要边界（批判性修正）**：路线图原草图建议「按分组单元聚合 + 存内部比例 ā_c、不按取值拆单元」处理
+  proportion，但这**无法复现现有 0/1 合格率的控制力**（现按 outcome 拆纯单元）；因此「任意分类变量的占比」
+  需重构聚合层拆单元，**本轮暂缓**——可用替代：把 `I(Z==v)` 预编码成 outcome 走现有路径。
 - **新增交互（cross-classification）目标（方法论路线图 §六）**：支持校准「城镇×男性」这类交叉分组的
   合格率。目标表用冒号连接的复合 key——`variable = "sex:residence"`、`level = "M:Urban"`，内部按 `:`
   拆分对各分量取交集 mask。`make_rate_targets()` 新增 `interactions`（与 `interaction_priority`）参数：

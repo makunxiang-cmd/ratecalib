@@ -13,6 +13,10 @@
 #'   indexed by group-variable name.
 #' @param interaction_priority Either one positive scalar or a named positive
 #'   vector indexed by interaction key.
+#' @param means,totals Optional data frames of mean/total targets for a numeric
+#'   variable, each with columns `variable`, `level`, `value_var` and `target`
+#'   (plus optional `priority`). When supplied, the result gains `statistic` and
+#'   `value_var` columns; proportion rows are tagged `statistic = "proportion"`.
 #'
 #' @return A data frame suitable for `calibrate_pass_rates()`.
 #' @export
@@ -22,7 +26,9 @@ make_rate_targets <- function(
     interactions = list(),
     overall_priority = 5,
     group_priority = 1,
-    interaction_priority = 1
+    interaction_priority = 1,
+    means = NULL,
+    totals = NULL
 ) {
   if (!is.list(groups) ||
       (length(groups) > 0L && (is.null(names(groups)) || any(names(groups) == "")))) {
@@ -124,6 +130,37 @@ make_rate_targets <- function(
       priority = priority,
       stringsAsFactors = FALSE
     ))
+  }
+
+  # Optional mean/total value targets. Their presence switches the table to the
+  # extended schema with statistic and value_var columns.
+  if (!is.null(means) || !is.null(totals)) {
+    out$statistic <- "proportion"
+    out$value_var <- NA_character_
+    add_value_targets <- function(out, df, stat) {
+      if (is.null(df)) return(out)
+      df <- as.data.frame(df, stringsAsFactors = FALSE)
+      needed <- c("variable", "level", "value_var", "target")
+      if (!all(needed %in% names(df))) {
+        stop(stat, " must have columns: ", paste(needed, collapse = ", "),
+             call. = FALSE)
+      }
+      if (any(!is.finite(as.numeric(df$target)))) {
+        stop("All ", stat, " target values must be finite.", call. = FALSE)
+      }
+      prio <- if ("priority" %in% names(df)) as.numeric(df$priority) else 1
+      rbind(out, data.frame(
+        variable = as.character(df$variable),
+        level = as.character(df$level),
+        target_rate = as.numeric(df$target),
+        priority = prio,
+        statistic = stat,
+        value_var = as.character(df$value_var),
+        stringsAsFactors = FALSE
+      ))
+    }
+    out <- add_value_targets(out, means, "mean")
+    out <- add_value_targets(out, totals, "total")
   }
 
   rownames(out) <- NULL

@@ -10,7 +10,9 @@ make_rate_targets(
   interactions = list(),
   overall_priority = 5,
   group_priority = 1,
-  interaction_priority = 1
+  interaction_priority = 1,
+  means = NULL,
+  totals = NULL
 )
 }
 \arguments{
@@ -32,6 +34,11 @@ indexed by group-variable name.}
 
 \item{interaction_priority}{Either one positive scalar or a named positive
 vector indexed by interaction key.}
+
+\item{means, totals}{Optional data frames of mean/total targets for a numeric
+variable, each with columns \code{variable}, \code{level}, \code{value_var} and \code{target}
+(plus optional \code{priority}). When supplied, the result gains \code{statistic} and
+\code{value_var} columns; proportion rows are tagged \code{statistic = "proportion"}.}
 }
 \value{
 A data frame suitable for \code{calibrate_pass_rates()}.

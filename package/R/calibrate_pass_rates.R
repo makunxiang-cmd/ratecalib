@@ -119,10 +119,34 @@ calibrate_pass_rates <- function(
   targets$level <- as.character(targets$level)
   targets$target_rate <- as.numeric(targets$target_rate)
 
+  # Optional target statistic: "proportion" (the outcome rate, default and
+  # backward compatible), "mean" or "total" of a numeric value_var.
+  if (!"statistic" %in% names(targets)) targets$statistic <- "proportion"
+  targets$statistic <- as.character(targets$statistic)
+  if (!"value_var" %in% names(targets)) targets$value_var <- NA_character_
+  targets$value_var <- as.character(targets$value_var)
+  valid_stats <- c("proportion", "mean", "total")
+  if (any(!targets$statistic %in% valid_stats)) {
+    stop("statistic must be one of: ", paste(valid_stats, collapse = ", "),
+         call. = FALSE)
+  }
+  is_value_stat <- targets$statistic %in% c("mean", "total")
+  if (any(is_value_stat) && mode != "exact") {
+    stop("statistic 'mean'/'total' currently supports mode='exact' only.",
+         call. = FALSE)
+  }
+  if (any(is_value_stat & (is.na(targets$value_var) | targets$value_var == ""))) {
+    stop("Targets with statistic 'mean' or 'total' require a value_var.",
+         call. = FALSE)
+  }
+
   if (nrow(targets) < 1L) stop("targets must contain at least one row.", call. = FALSE)
-  if (any(!is.finite(targets$target_rate)) ||
-      any(targets$target_rate < 0 | targets$target_rate > 1)) {
-    stop("All target_rate values must be between 0 and 1.", call. = FALSE)
+  if (any(!is.finite(targets$target_rate))) {
+    stop("All target_rate values must be finite.", call. = FALSE)
+  }
+  is_prop <- targets$statistic == "proportion"
+  if (any(is_prop & (targets$target_rate < 0 | targets$target_rate > 1))) {
+    stop("proportion target_rate values must be between 0 and 1.", call. = FALSE)
   }
 
   if (!"priority" %in% names(targets)) targets$priority <- 1
@@ -156,6 +180,25 @@ calibrate_pass_rates <- function(
   m <- nrow(cells)
   grand_total <- sum(D)
 
+  # Per-cell weighted sums of each numeric value variable used by mean/total
+  # targets: cell_value_sum[[vv]][c] = sum_{i in cell c} d_i * vv_i, aligned to
+  # the cell order. The cell mean is then cell_value_sum / D.
+  stat_vars <- unique(targets$value_var[is_value_stat])
+  stat_vars <- stat_vars[!is.na(stat_vars)]
+  cell_value_sum <- list()
+  for (vv in stat_vars) {
+    if (!vv %in% names(data)) {
+      stop("value_var '", vv, "' is not a column in data.", call. = FALSE)
+    }
+    vals <- suppressWarnings(as.numeric(data[[vv]]))
+    if (anyNA(vals) || any(!is.finite(vals))) {
+      stop("value_var '", vv, "' must be numeric and free of missing values.",
+           call. = FALSE)
+    }
+    s <- rowsum(d * vals, group = aggregate_key, reorder = FALSE)
+    cell_value_sum[[vv]] <- as.numeric(s[, 1L])
+  }
+
   # Preserve the current population margins as hard constraints.
   margin_rows <- list(overall = rep(1, m))
   margin_rhs_named <- c(overall = grand_total)
@@ -176,8 +219,11 @@ calibrate_pass_rates <- function(
   M <- Matrix::Matrix(do.call(rbind, margin_rows), sparse = TRUE)
   margin_rhs <- as.numeric(margin_rhs_named)
 
-  # Construct linearized pass-rate target rows.
+  # Construct linearized target rows. Each row is A_row %*% x compared to
+  # rate_rhs: proportion/mean rows are homogeneous (rhs 0), total rows have
+  # rhs = target total.
   rate_rows <- vector("list", nrow(targets))
+  rate_rhs <- numeric(nrow(targets))
   target_sizes <- numeric(nrow(targets))
   initial_rates <- numeric(nrow(targets))
   target_names <- character(nrow(targets))
@@ -231,10 +277,26 @@ calibrate_pass_rates <- function(
     }
 
     target_sizes[j] <- sum(D[mask])
-    initial_rates[j] <- sum(D[mask] * cells$.outcome[mask]) / target_sizes[j]
-
-    # sum x_i * I(group) * (y_i - target_rate) = 0
-    rate_rows[[j]] <- as.numeric(mask) * (cells$.outcome - r)
+    stat <- targets$statistic[j]
+    if (stat == "proportion") {
+      # sum x_c * I(group) * (outcome_c - target) = 0  ->  group rate = target
+      initial_rates[j] <- sum(D[mask] * cells$.outcome[mask]) / target_sizes[j]
+      rate_rows[[j]] <- as.numeric(mask) * (cells$.outcome - r)
+      rate_rhs[j] <- 0
+    } else {
+      wbar <- cell_value_sum[[targets$value_var[j]]] / D
+      if (stat == "mean") {
+        # sum x_c * I(group) * (wbar_c - target) = 0  ->  group mean = target
+        initial_rates[j] <- sum(D[mask] * wbar[mask]) / target_sizes[j]
+        rate_rows[[j]] <- as.numeric(mask) * (wbar - r)
+        rate_rhs[j] <- 0
+      } else {
+        # sum x_c * I(group) * wbar_c = target  ->  group total = target
+        initial_rates[j] <- sum(D[mask] * wbar[mask])
+        rate_rows[[j]] <- as.numeric(mask) * wbar
+        rate_rhs[j] <- r
+      }
+    }
     target_names[j] <- paste(v, lev, sep = "=")
   }
 
@@ -257,8 +319,8 @@ calibrate_pass_rates <- function(
 
     if (mode == "exact") {
       A <- rbind(M, R, I_m)
-      l <- c(margin_rhs, rep(0, nrow(R)), lower * D)
-      u <- c(margin_rhs, rep(0, nrow(R)), upper * D)
+      l <- c(margin_rhs, rate_rhs, lower * D)
+      u <- c(margin_rhs, rate_rhs, upper * D)
     } else {
       A <- rbind(M, I_m)
       l <- c(margin_rhs, lower * D)
@@ -323,7 +385,7 @@ calibrate_pass_rates <- function(
       }
     }
     A_eq <- rbind(M, R)
-    t_eq <- c(margin_rhs, rep(0, nrow(R)))
+    t_eq <- c(margin_rhs, rate_rhs)
     solution <- .calibrate_dual(D, A_eq, t_eq, gfun, gpfun, verbose = verbose)
     status <- if (isTRUE(solution$converged)) "solved" else "not converged"
     if (!isTRUE(solution$converged)) {
@@ -356,12 +418,24 @@ calibrate_pass_rates <- function(
   achieved_rates <- numeric(nrow(targets))
   for (j in seq_len(nrow(targets))) {
     mask <- build_mask(targets$variable[j], targets$level[j])
-    achieved_rates[j] <- sum(x[mask] * cells$.outcome[mask]) / sum(x[mask])
+    stat <- targets$statistic[j]
+    if (stat == "proportion") {
+      achieved_rates[j] <- sum(x[mask] * cells$.outcome[mask]) / sum(x[mask])
+    } else {
+      wbar <- cell_value_sum[[targets$value_var[j]]] / D
+      achieved_rates[j] <- if (stat == "mean") {
+        sum(x[mask] * wbar[mask]) / sum(x[mask])
+      } else {
+        sum(x[mask] * wbar[mask])  # total
+      }
+    }
   }
 
   target_check <- data.frame(
     variable = targets$variable,
     level = targets$level,
+    statistic = targets$statistic,
+    value_var = targets$value_var,
     target_rate = targets$target_rate,
     initial_rate = initial_rates,
     achieved_rate = achieved_rates,
