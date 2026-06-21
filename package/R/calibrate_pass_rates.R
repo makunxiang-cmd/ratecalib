@@ -47,10 +47,6 @@ calibrate_pass_rates <- function(
 ) {
   mode <- match.arg(mode)
   distance <- match.arg(distance)
-  if (distance != "chi2" && mode != "exact") {
-    stop("distance='", distance, "' currently supports mode='exact' only.",
-         call. = FALSE)
-  }
 
   if (!requireNamespace("osqp", quietly = TRUE)) {
     stop("Package 'osqp' is required. Run install.packages('osqp').", call. = FALSE)
@@ -424,18 +420,32 @@ calibrate_pass_rates <- function(
     }
     A_eq <- rbind(M, R)
     t_eq <- c(margin_rhs, rate_rhs)
-    solution <- .calibrate_dual(D, A_eq, t_eq, gfun, gpfun, verbose = verbose)
+    # Margins stay hard (reg = 0); in soft mode the target rows get a ridge
+    # Omega^{-1} = size^2 / (2 lambda grand_total priority), matching the chi2
+    # soft penalty strength, so larger lambda approaches the exact solution.
+    if (mode == "soft") {
+      penalty <- lambda * grand_total * targets$priority / (target_sizes^2)
+      reg <- c(rep(0, nrow(M)), 1 / (2 * penalty))
+    } else {
+      reg <- rep(0, nrow(M) + nrow(R))
+    }
+    solution <- .calibrate_dual(D, A_eq, t_eq, gfun, gpfun, reg = reg,
+                                verbose = verbose)
     status <- if (isTRUE(solution$converged)) "solved" else "not converged"
     if (!isTRUE(solution$converged)) {
       stop(
         "The ", distance, " dual iteration did not converge (max residual ",
         signif(solution$max_resid, 3), " after ", solution$iterations,
-        " iterations). The exact targets may be infeasible or unreachable",
-        if (distance == "logit")
-          " within (lower, upper); try widening the bounds, or note an "
-        else
-          ", for example an ",
-        "all-pass or all-fail group. Otherwise try mode='soft' with distance='chi2'.",
+        " iterations). ",
+        if (mode == "exact") {
+          paste0("The exact targets may be infeasible or unreachable",
+                 if (distance == "logit")
+                   " within (lower, upper); try widening the bounds or "
+                 else ", for example an all-pass or all-fail group; try ",
+                 "mode='soft'.")
+        } else {
+          "Try a smaller lambda or distance='chi2'."
+        },
         call. = FALSE
       )
     }
@@ -579,26 +589,30 @@ calibrate_pass_rates <- function(
   )
 }
 
-# Dual Newton solver for exact calibration in the Deville-Sarndal distance
-# family. Solves A x = t with x_c = D_c * g(eta_c), eta = A^T lambda, for the
-# dual variable lambda, where g is the distance's weight-ratio function and
-# gprime its derivative. Newton step uses J = A diag(D*g'(eta)) A^T with a
-# backtracking line search on the infinity-norm residual for robustness.
-# Returns a list with the primal solution x and convergence information.
-.calibrate_dual <- function(D, A, t, gfun, gpfun, max_iter = 200L,
+# Dual Newton solver for calibration in the Deville-Sarndal distance family.
+# Solves for the dual variable lambda with x_c = D_c * g(eta_c), eta = A^T
+# lambda, where g is the distance's weight-ratio function and gprime its
+# derivative. `reg` is a per-constraint ridge: 0 for hard (exactly enforced)
+# rows and Omega^{-1} > 0 for soft (penalized) rows. The stationarity system is
+#   F(lambda) = A x - t + reg * lambda = 0,   J = A diag(D g'(eta)) A^T + diag(reg)
+# so reg = 0 recovers exact calibration and larger penalties (smaller reg)
+# approach it. A backtracking line search on the infinity-norm residual gives
+# robustness. Returns the primal solution x and convergence information.
+.calibrate_dual <- function(D, A, t, gfun, gpfun, reg = NULL, max_iter = 200L,
                             tol = 1e-10, verbose = FALSE) {
   A <- methods::as(A, "CsparseMatrix")
   k <- nrow(A)
   m <- ncol(A)
+  if (is.null(reg)) reg <- rep(0, k)
   lambda <- rep(0, k)
-  eta <- as.numeric(Matrix::crossprod(A, lambda))  # A^T lambda, length m
 
-  resid_of <- function(eta) {
+  resid_of <- function(lambda) {
+    eta <- as.numeric(Matrix::crossprod(A, lambda))  # A^T lambda, length m
     x <- D * gfun(eta)
-    list(x = x, F = as.numeric(A %*% x) - t)
+    list(eta = eta, x = x, F = as.numeric(A %*% x) - t + reg * lambda)
   }
 
-  cur <- resid_of(eta)
+  cur <- resid_of(lambda)
   resid <- max(abs(cur$F))
 
   for (it in seq_len(max_iter)) {
@@ -606,8 +620,9 @@ calibrate_pass_rates <- function(
       return(list(x = cur$x, iterations = it - 1L, converged = TRUE,
                   max_resid = resid))
     }
-    Dg <- D * gpfun(eta)
-    J <- as.matrix(A %*% Matrix::Diagonal(m, x = Dg) %*% Matrix::t(A))
+    Dg <- D * gpfun(cur$eta)
+    J <- as.matrix(A %*% Matrix::Diagonal(m, x = Dg) %*% Matrix::t(A)) +
+      diag(reg, k)
     step <- tryCatch(solve(J, cur$F),
                      error = function(e) solve(J + diag(1e-10, k), cur$F))
 
@@ -615,8 +630,7 @@ calibrate_pass_rates <- function(
     alpha <- 1
     accepted <- FALSE
     repeat {
-      eta_try <- as.numeric(Matrix::crossprod(A, lambda - alpha * step))
-      try_res <- resid_of(eta_try)
+      try_res <- resid_of(lambda - alpha * step)
       new_resid <- max(abs(try_res$F))
       if (isTRUE(new_resid < resid)) {
         accepted <- TRUE
@@ -628,11 +642,10 @@ calibrate_pass_rates <- function(
     if (!accepted) break  # cannot make progress: likely infeasible
 
     lambda <- lambda - alpha * step
-    eta <- eta_try
     cur <- try_res
     resid <- new_resid
     if (isTRUE(verbose)) {
-      message(sprintf("raking iter %d: max residual %.3e", it, resid))
+      message(sprintf("dual iter %d: max residual %.3e", it, resid))
     }
   }
 

@@ -1,5 +1,10 @@
 # ratecalib (开发中)
 
+- **raking / logit 距离现支持 soft 模式（惩罚校准）**：不再限 exact。边际仍为硬约束，目标行按
+  `Omega^{-1} = size^2/(2*lambda*grand_total*priority)` 软化（与 chi2 soft 惩罚强度语义一致，
+  lambda 越大越接近 exact）。对偶 Newton 求解器加一个按约束的 ridge 向量 `reg` 即实现
+  （`F = Ax - t + reg*lambda`，`J` 加 `diag(reg)`，正定更稳）。soft 下目标不可达（如全合格组）也总有解、
+  不再报错。（mean/total 仍限 exact——其 soft 惩罚在数值量级下尺度不可比，留作单独问题。）
 - **新增标准 S3 提取方法**：`weights()` 取校准权重向量、`as.data.frame()` 取含校准权重列的数据框，
   避免用户手挖 `fit$data$weight_calibrated`。
 - **修复**：`stats` 之前虽全程以 `stats::` 调用却未声明在 `DESCRIPTION` 的 Imports（潜在依赖缺漏），
