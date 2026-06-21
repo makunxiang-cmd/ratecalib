@@ -15,6 +15,7 @@ calibrate_rates(
   lower = 0.25,
   upper = 4,
   mode = c("soft", "exact"),
+  distance = c("chi2", "raking"),
   lambda = 10000,
   new_weight = "weight_calibrated",
   check = TRUE,
@@ -41,6 +42,9 @@ vector named by grouping variable.}
 \item{lower, upper}{Lower and upper bounds on the weight-adjustment multiplier.}
 
 \item{mode}{\code{"soft"} for soft constraints, \code{"exact"} for exact constraints.}
+
+\item{distance}{Calibration distance, passed to \code{\link[=calibrate_pass_rates]{calibrate_pass_rates()}}.
+\code{"chi2"} (default) or \code{"raking"} (entropy; exact mode only).}
 
 \item{lambda}{Soft-constraint penalty strength.}
 

@@ -13,6 +13,14 @@
 #' @param lower,upper Scalar lower and upper bounds on the multiplier applied
 #'   to each initial cell weight.
 #' @param mode Either `"soft"` or `"exact"`.
+#' @param distance Distance function of the calibration family. `"chi2"` (the
+#'   default) is the linear/quadratic distance solved as a bounded QP via OSQP
+#'   and reproduces earlier behaviour. `"raking"` is the entropy distance
+#'   `g log g - g + 1`, whose solution `g = exp(eta)` is strictly positive by
+#'   construction; it is solved by a dual Newton iteration and currently
+#'   supports `mode = "exact"` only. Raking is unbounded above, so `lower` and
+#'   `upper` are not enforced for it but multipliers outside that range are
+#'   reported in the diagnostics.
 #' @param lambda Positive soft-constraint penalty. Larger values emphasize
 #'   target matching more strongly.
 #' @param new_weight Name of the calibrated weight column added to `data`.
@@ -29,11 +37,17 @@ calibrate_pass_rates <- function(
     lower = 0.25,
     upper = 4,
     mode = c("soft", "exact"),
+    distance = c("chi2", "raking"),
     lambda = 1e4,
     new_weight = "weight_calibrated",
     verbose = FALSE
 ) {
   mode <- match.arg(mode)
+  distance <- match.arg(distance)
+  if (distance != "chi2" && mode != "exact") {
+    stop("distance='", distance, "' currently supports mode='exact' only.",
+         call. = FALSE)
+  }
 
   if (!requireNamespace("osqp", quietly = TRUE)) {
     stop("Package 'osqp' is required. Run install.packages('osqp').", call. = FALSE)
@@ -202,62 +216,83 @@ calibrate_pass_rates <- function(
   R <- Matrix::Matrix(do.call(rbind, rate_rows), sparse = TRUE)
   rownames(R) <- make.unique(target_names)
 
-  # Minimize sum_c (x_c - D_c)^2 / D_c.
-  # OSQP form: 0.5*x'P*x + q'x.
-  P <- Matrix::Diagonal(m, x = 2 / D)
-  q <- rep(-2, m)
+  if (distance == "chi2") {
+    # Minimize sum_c (x_c - D_c)^2 / D_c.
+    # OSQP form: 0.5*x'P*x + q'x.
+    P <- Matrix::Diagonal(m, x = 2 / D)
+    q <- rep(-2, m)
 
-  if (mode == "soft") {
-    penalty <- lambda * grand_total * targets$priority / (target_sizes^2)
-    W <- Matrix::Diagonal(nrow(R), x = penalty)
-    P <- P + 2 * crossprod(R, W %*% R)
-  }
+    if (mode == "soft") {
+      penalty <- lambda * grand_total * targets$priority / (target_sizes^2)
+      W <- Matrix::Diagonal(nrow(R), x = penalty)
+      P <- P + 2 * crossprod(R, W %*% R)
+    }
 
-  I_m <- Matrix::Diagonal(m)
+    I_m <- Matrix::Diagonal(m)
 
-  if (mode == "exact") {
-    A <- rbind(M, R, I_m)
-    l <- c(margin_rhs, rep(0, nrow(R)), lower * D)
-    u <- c(margin_rhs, rep(0, nrow(R)), upper * D)
-  } else {
-    A <- rbind(M, I_m)
-    l <- c(margin_rhs, lower * D)
-    u <- c(margin_rhs, upper * D)
-  }
+    if (mode == "exact") {
+      A <- rbind(M, R, I_m)
+      l <- c(margin_rhs, rep(0, nrow(R)), lower * D)
+      u <- c(margin_rhs, rep(0, nrow(R)), upper * D)
+    } else {
+      A <- rbind(M, I_m)
+      l <- c(margin_rhs, lower * D)
+      u <- c(margin_rhs, upper * D)
+    }
 
-  P <- methods::as(
-    methods::as(Matrix::forceSymmetric(P, uplo = "U"), "generalMatrix"),
-    "CsparseMatrix"
-  )
-  A <- methods::as(methods::as(A, "generalMatrix"), "CsparseMatrix")
-
-  settings <- osqp::osqpSettings(
-    verbose = verbose,
-    max_iter = 100000L,
-    eps_abs = 1e-8,
-    eps_rel = 1e-8,
-    polishing = TRUE,
-    scaled_termination = TRUE
-  )
-
-  solution <- osqp::solve_osqp(P = P, q = q, A = A, l = l, u = u,
-                               pars = settings)
-  status <- as.character(solution$info$status)
-
-  if (!grepl("solved", status, ignore.case = TRUE)) {
-    stop(
-      "Optimization did not solve successfully. OSQP status: ", status,
-      if (mode == "exact") {
-        paste0(". The targets may be mutually inconsistent or the bounds ",
-               "may be too narrow. Try mode='soft', or widen lower/upper.")
-      } else {
-        ". Try widening lower/upper or reducing numerical strictness."
-      },
-      call. = FALSE
+    P <- methods::as(
+      methods::as(Matrix::forceSymmetric(P, uplo = "U"), "generalMatrix"),
+      "CsparseMatrix"
     )
+    A <- methods::as(methods::as(A, "generalMatrix"), "CsparseMatrix")
+
+    settings <- osqp::osqpSettings(
+      verbose = verbose,
+      max_iter = 100000L,
+      eps_abs = 1e-8,
+      eps_rel = 1e-8,
+      polishing = TRUE,
+      scaled_termination = TRUE
+    )
+
+    solution <- osqp::solve_osqp(P = P, q = q, A = A, l = l, u = u,
+                                 pars = settings)
+    status <- as.character(solution$info$status)
+
+    if (!grepl("solved", status, ignore.case = TRUE)) {
+      stop(
+        "Optimization did not solve successfully. OSQP status: ", status,
+        if (mode == "exact") {
+          paste0(". The targets may be mutually inconsistent or the bounds ",
+                 "may be too narrow. Try mode='soft', or widen lower/upper.")
+        } else {
+          ". Try widening lower/upper or reducing numerical strictness."
+        },
+        call. = FALSE
+      )
+    }
+
+    x <- as.numeric(solution$x)
+  } else {
+    # Entropy (raking) distance, exact calibration via dual Newton.
+    # Constraints A_eq x = t_eq: population margins plus linearized rate rows.
+    A_eq <- rbind(M, R)
+    t_eq <- c(margin_rhs, rep(0, nrow(R)))
+    solution <- .calibrate_raking(D, A_eq, t_eq, verbose = verbose)
+    status <- if (isTRUE(solution$converged)) "solved" else "not converged"
+    if (!isTRUE(solution$converged)) {
+      stop(
+        "Raking dual iteration did not converge (max residual ",
+        signif(solution$max_resid, 3), " after ", solution$iterations,
+        " iterations). The exact targets may be infeasible or unreachable ",
+        "(for example, an all-pass or all-fail group). Try mode='soft' with ",
+        "distance='chi2'.",
+        call. = FALSE
+      )
+    }
+    x <- solution$x
   }
 
-  x <- as.numeric(solution$x)
   g <- x / D
 
   cells$.adjusted_total <- x
@@ -373,6 +408,7 @@ calibrate_pass_rates <- function(
         lower = lower,
         upper = upper,
         mode = mode,
+        distance = distance,
         lambda = lambda,
         new_weight = new_weight
       ),
@@ -380,4 +416,65 @@ calibrate_pass_rates <- function(
     ),
     class = "pass_rate_calibration"
   )
+}
+
+# Dual Newton solver for exact entropy (raking) calibration.
+#
+# Solves A x = t with x_c = D_c * exp(eta_c), eta = A^T lambda, for the dual
+# variable lambda. Newton step uses J = A diag(D*exp(eta)) A^T with a
+# backtracking line search on the infinity-norm residual for robustness.
+# Returns a list with the primal solution x and convergence information.
+.calibrate_raking <- function(D, A, t, max_iter = 200L, tol = 1e-10,
+                              verbose = FALSE) {
+  A <- methods::as(A, "CsparseMatrix")
+  k <- nrow(A)
+  m <- ncol(A)
+  lambda <- rep(0, k)
+  eta <- as.numeric(Matrix::crossprod(A, lambda))  # A^T lambda, length m
+
+  resid_of <- function(eta) {
+    x <- D * exp(eta)
+    list(x = x, F = as.numeric(A %*% x) - t)
+  }
+
+  cur <- resid_of(eta)
+  resid <- max(abs(cur$F))
+
+  for (it in seq_len(max_iter)) {
+    if (is.finite(resid) && resid < tol) {
+      return(list(x = cur$x, iterations = it - 1L, converged = TRUE,
+                  max_resid = resid))
+    }
+    Dg <- D * exp(eta)
+    J <- as.matrix(A %*% Matrix::Diagonal(m, x = Dg) %*% Matrix::t(A))
+    step <- tryCatch(solve(J, cur$F),
+                     error = function(e) solve(J + diag(1e-10, k), cur$F))
+
+    # Backtracking line search: accept the step only if it reduces the residual.
+    alpha <- 1
+    accepted <- FALSE
+    repeat {
+      eta_try <- as.numeric(Matrix::crossprod(A, lambda - alpha * step))
+      try_res <- resid_of(eta_try)
+      new_resid <- max(abs(try_res$F))
+      if (isTRUE(new_resid < resid)) {
+        accepted <- TRUE
+        break
+      }
+      alpha <- alpha / 2
+      if (alpha < 1e-8) break
+    }
+    if (!accepted) break  # cannot make progress: likely infeasible
+
+    lambda <- lambda - alpha * step
+    eta <- eta_try
+    cur <- try_res
+    resid <- new_resid
+    if (isTRUE(verbose)) {
+      message(sprintf("raking iter %d: max residual %.3e", it, resid))
+    }
+  }
+
+  list(x = cur$x, iterations = max_iter,
+       converged = is.finite(resid) && resid < tol, max_resid = resid)
 }

@@ -13,6 +13,7 @@ calibrate_pass_rates(
   lower = 0.25,
   upper = 4,
   mode = c("soft", "exact"),
+  distance = c("chi2", "raking"),
   lambda = 10000,
   new_weight = "weight_calibrated",
   verbose = FALSE
@@ -34,6 +35,15 @@ calibrate_pass_rates(
 to each initial cell weight.}
 
 \item{mode}{Either \code{"soft"} or \code{"exact"}.}
+
+\item{distance}{Distance function of the calibration family. \code{"chi2"} (the
+default) is the linear/quadratic distance solved as a bounded QP via OSQP
+and reproduces earlier behaviour. \code{"raking"} is the entropy distance
+\verb{g log g - g + 1}, whose solution \code{g = exp(eta)} is strictly positive by
+construction; it is solved by a dual Newton iteration and currently
+supports \code{mode = "exact"} only. Raking is unbounded above, so \code{lower} and
+\code{upper} are not enforced for it but multipliers outside that range are
+reported in the diagnostics.}
 
 \item{lambda}{Positive soft-constraint penalty. Larger values emphasize
 target matching more strongly.}

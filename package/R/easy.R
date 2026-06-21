@@ -16,6 +16,8 @@
 #'   vector named by grouping variable.
 #' @param lower,upper Lower and upper bounds on the weight-adjustment multiplier.
 #' @param mode `"soft"` for soft constraints, `"exact"` for exact constraints.
+#' @param distance Calibration distance, passed to [calibrate_pass_rates()].
+#'   `"chi2"` (default) or `"raking"` (entropy; exact mode only).
 #' @param lambda Soft-constraint penalty strength.
 #' @param new_weight Name of the new calibrated weight column.
 #' @param check Whether to run the data checks before solving.
@@ -34,12 +36,14 @@ calibrate_rates <- function(
     lower = 0.25,
     upper = 4,
     mode = c("soft", "exact"),
+    distance = c("chi2", "raking"),
     lambda = 1e4,
     new_weight = "weight_calibrated",
     check = TRUE,
     verbose = FALSE
 ) {
   mode <- match.arg(mode)
+  distance <- match.arg(distance)
   if (!is.list(groups) || is.null(names(groups)) || any(names(groups) == "")) {
     stop("groups must be a named list, e.g. list(sex = c(M = 0.7, F = 0.68)).",
          call. = FALSE)
@@ -83,6 +87,7 @@ calibrate_rates <- function(
     lower = lower,
     upper = upper,
     mode = mode,
+    distance = distance,
     lambda = lambda,
     new_weight = new_weight,
     verbose = verbose
