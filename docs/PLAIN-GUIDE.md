@@ -8,6 +8,39 @@
 
 ---
 
+# 重要声明：关于学术诚信与正当使用 / Important notice on integrity and proper use
+
+在开始之前，请务必读完这一节。
+
+本工具通过调整权重，使加权后的合格率、比例、均值或总量逼近或精确达到你设定的目标值。
+正因为如此，它存在被滥用于学术造假的风险。请牢记：当目标值不是来自可靠的外部数据，
+而是出于你的期望或主观设定时，所谓"达成"的数字，本质上是被你设出来的结果，而不是独立得到的发现。
+把这种结果当成独立的研究发现去报告或发表，属于数据伪造或篡改，是学术不端，并可能触犯法律法规与期刊机构规定。
+
+正当的用法是：目标值来自可靠的外部总体信息，并且在任何对外结论中如实、完整地披露所用的校准方法、
+目标的来源与性质、权重的约束设定，以及校准对结果的影响。
+
+This tool adjusts weights so that weighted rates, proportions, means, or totals approach or exactly meet
+targets you specify. It can therefore be misused for academic fraud. When the targets are not derived from
+reliable external data but reflect your own expectations or subjective choices, the resulting figures are a
+product of the targets you set, not independent findings. Presenting such figures as independent research
+findings constitutes data fabrication or falsification, is academic misconduct, and may violate laws and
+institutional or journal rules. Legitimate use requires that targets come from reliable external information
+and that any external conclusion fully and truthfully disclose the calibration method, the source and nature
+of the targets, the weight constraints, and the effect of calibration on the results.
+
+本软件按"现状"提供，不附带任何担保；使用者须对其合法、合规与合乎伦理的使用负全部责任。
+下载、安装或使用本软件，即表示同意接受完整的免责声明与使用条款。
+The software is provided "as is", without warranty; the user is solely responsible for its lawful, compliant,
+and ethical use. By downloading, installing, or using it, you agree to the full disclaimer and terms.
+
+完整的中英文免责声明与使用条款见项目根目录的 `DISCLAIMER.md`，安装后也可用
+`system.file("DISCLAIMER.md", package = "ratecalib")` 找到。
+The full bilingual disclaimer and terms are in `DISCLAIMER.md` at the project root, and after installation at
+`system.file("DISCLAIMER.md", package = "ratecalib")`.
+
+---
+
 # 第一部分：快速上手
 
 ## 1. 它解决什么问题

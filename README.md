@@ -27,6 +27,26 @@
 
 ---
 
+## 重要声明 / Disclaimer
+
+本工具通过调整权重使加权结果逼近或精确达到使用者设定的目标值，因此存在被滥用于学术造假的风险。
+当目标值并非来自可靠的外部数据，而是出于期望或主观设定时，所谓"达成"的数字本质上是被设定出来的结果，
+而非独立发现；将其作为独立研究发现报告或发表，构成数据伪造或篡改，属于学术不端，并可能违反法律法规与
+期刊机构规定。正当使用要求目标来自可靠外部信息，并在任何对外结论中如实、完整披露校准方法、目标来源、
+权重约束及校准对结果的影响。本软件按"现状"提供、不附带任何担保；使用者须对其合法、合规与合乎伦理的
+使用负全部责任。
+
+This tool adjusts weights to meet user-specified targets and can therefore be misused for academic fraud. When
+targets are not from reliable external data but reflect expectations or subjective choices, the resulting
+figures are a product of the chosen targets, not independent findings; presenting them as independent findings
+is data fabrication or falsification and academic misconduct. The software is provided "as is", without
+warranty, and the user is solely responsible for its lawful and ethical use.
+
+完整的中英文免责声明与使用条款见 [`DISCLAIMER.md`](DISCLAIMER.md)。下载、安装或使用本软件即表示同意接受。
+Full bilingual terms are in [`DISCLAIMER.md`](DISCLAIMER.md); using the software constitutes acceptance.
+
+---
+
 ## 一、安装
 
 先安装底层依赖：

@@ -1,5 +1,10 @@
 # ratecalib (开发中)
 
+- **新增中英文免责声明与使用条款**，针对本工具可能被滥用于学术造假的风险：随包分发
+  `inst/DISCLAIMER.md`（安装后 `system.file("DISCLAIMER.md", package="ratecalib")` 可取），项目根
+  同备一份；README 与 `docs/PLAIN-GUIDE.md` 置顶醒目声明。新增 `.onAttach` 加载提示（英文 ASCII，
+  指向完整声明），`R CMD check` 确认其可被抑制、不影响测试。声明涵盖正当用途、禁止滥用与学术诚信、
+  不提供担保、责任限制、使用者责任、接受条款，作为 MIT 许可证的补充。
 - **mean/total 目标现支持 soft 模式**：不再限 exact。为解决「率 vs 数值量级」惩罚不可比的问题，
   mean/total 的目标行惩罚按目标量级 `|target|` 归一化（即惩罚相对误差），与率的绝对误差可比；
   proportion 仍用绝对率误差。total 的非零右端在 chi2 soft 下补一个线性项 `q -= 2 RᵀW·rhs`。
