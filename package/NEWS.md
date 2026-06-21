@@ -1,5 +1,12 @@
 # ratecalib (开发中)
 
+- **新增重复权重方差估计（方法论路线图 §七 + §五 进度条）**：`calibrate_replicate_weights(fit,
+  repweights, scale, rscales, progress)` 对每套重复权重（bootstrap/jackknife/BRR，外部生成）以 `fit`
+  的同一目标与设置重新校准（目标自 `fit$target_check` 重建），得校准后重复权重矩阵；`replicate_variance(
+  object, x, statistic)` 用通用重复方差公式 `Var = scale·Σ rscales_r·(θ̂_r − θ̂_0)²` 估计任意 total/mean
+  的方差/SE，与 `survey` 的 `svrepdesign` 对齐（scale/rscales 由用户按重复方案设定）。`progress=TRUE` 在
+  重复循环上显示进度条（`utils::txtProgressBar`，无新依赖）。配 `print.replicate_calibration`。
+  （未做 design-based 线性化方差——需引入本包尚不建模的抽样设计信息。）
 - **raking / logit 距离现支持 soft 模式（惩罚校准）**：不再限 exact。边际仍为硬约束，目标行按
   `Omega^{-1} = size^2/(2*lambda*grand_total*priority)` 软化（与 chi2 soft 惩罚强度语义一致，
   lambda 越大越接近 exact）。对偶 Newton 求解器加一个按约束的 ridge 向量 `reg` 即实现
