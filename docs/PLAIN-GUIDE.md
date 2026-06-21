@@ -227,6 +227,13 @@ library(ratecalib)
 只有用到 Excel 读写时才需要，平时可省。第三行从本地源码包安装 ratecalib 本身，
 引号里换成你拿到的安装包文件名。最后一行加载，每次新开 R 都要跑。
 
+这里要分清装和加载是两回事。装是用 install.packages 把包放到硬盘上，每个包装一次就够。
+加载是用 library 把包请进当前这次会话，每次新开 R 都要重来。容易让人犯嘀咕的是：
+Matrix、osqp、openxlsx 这几个依赖只需要装，不需要你去 library。
+真正干活时你只写 library(ratecalib) 这一行就行。ratecalib 会自己在背后调用 Matrix 和 osqp，
+用到 Excel 时再自己请出 openxlsx，都不需要你手动加载它们。
+你唯一要保证的是它们已经装上，比如 openxlsx 没装，一调 Excel 函数就会提示你去装它。
+
 macOS 上如果装 osqp 时报编译错误，先在终端跑一次 `xcode-select --install` 装上命令行工具再试。
 
 ## 10. 两层接口该选哪个
