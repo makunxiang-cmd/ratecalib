@@ -1,6 +1,4 @@
-## Submission
-
-This is a new submission of ratecalib 0.3.0.
+This is a new submission.
 
 ratecalib performs calibration weighting for binary-outcome pass rates against
 multiple overlapping subgroup targets, with extensions for raking and logit
@@ -9,31 +7,19 @@ precheck, Excel input/output, and replicate-weight variance estimation.
 
 ## R CMD check results
 
-Local check with `R CMD check --as-cran` gives:
-
 0 errors | 0 warnings | 1 note
 
-* The note is the standard "New submission" note.
+* New submission.
 * The "possibly misspelled words in DESCRIPTION" (Deville, Saerndal) are author
-  surnames cited as the methodological reference; "pre" comes from "pre-solve".
+  surnames cited as the methodological reference; "pre" is from "pre-solve".
   These are correct and not misspellings.
-
-Checked on win-builder R-devel: Status 1 NOTE (the New submission note above),
-PDF manual built successfully.
 
 ## Test environments
 
 * local: macOS, R 4.6.0
-* (please also run win-builder and R-hub before submitting; see notes below)
+* win-builder: R-devel and R-release, both Status 1 NOTE (the New submission note
+  above); the PDF manual built successfully on win-builder.
 
 ## Downstream dependencies
 
-There are no downstream dependencies (new package).
-
-## Notes for the maintainer before submitting
-
-* Run `devtools::check_win_devel()` and an R-hub check to cover other platforms.
-* The full disclaimer ships in `inst/DISCLAIMER.md`; non-ASCII content is in
-  documentation and inst only, while all R code is ASCII.
-* Suggested package 'openxlsx' is used only behind `requireNamespace()` guards;
-  examples that need it are wrapped accordingly.
+None (this is a new package).
