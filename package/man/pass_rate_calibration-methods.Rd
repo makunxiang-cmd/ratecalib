@@ -2,12 +2,18 @@
 % Please edit documentation in R/methods.R
 \name{pass_rate_calibration-methods}
 \alias{pass_rate_calibration-methods}
+\alias{weights.pass_rate_calibration}
+\alias{as.data.frame.pass_rate_calibration}
 \alias{print.pass_rate_calibration}
 \alias{summary.pass_rate_calibration}
 \alias{print.summary_pass_rate_calibration}
 \alias{plot.pass_rate_calibration}
 \title{Methods for pass_rate_calibration objects}
 \usage{
+\method{weights}{pass_rate_calibration}(object, ...)
+
+\method{as.data.frame}{pass_rate_calibration}(x, row.names = NULL, optional = FALSE, ...)
+
 \method{print}{pass_rate_calibration}(x, digits = 4, ...)
 
 \method{summary}{pass_rate_calibration}(object, top = 10L, ...)
@@ -17,13 +23,15 @@
 \method{plot}{pass_rate_calibration}(x, type = c("target_error", "multipliers"), top = 20L, ...)
 }
 \arguments{
+\item{...}{Further arguments passed to the underlying print or graphics
+functions.}
+
 \item{x, object}{A \code{pass_rate_calibration} object (or, for the summary
 printer, a \code{summary_pass_rate_calibration} object).}
 
-\item{digits}{Number of decimal places to display.}
+\item{row.names, optional}{Standard \code{\link[=as.data.frame]{as.data.frame()}} arguments (ignored).}
 
-\item{...}{Further arguments passed to the underlying print or graphics
-functions.}
+\item{digits}{Number of decimal places to display.}
 
 \item{top}{Number of largest-error targets to display.}
 
@@ -32,7 +40,9 @@ functions.}
 }
 \value{
 \code{print} and \code{plot} return their input invisibly; \code{summary} returns a
-\code{summary_pass_rate_calibration} object.
+\code{summary_pass_rate_calibration} object; \code{weights} returns the calibrated
+weight vector; \code{as.data.frame} returns the data with the calibrated weight
+column.
 }
 \description{
 S3 methods that print, summarize and plot calibration results.

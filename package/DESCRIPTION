@@ -20,7 +20,8 @@ Depends: R (>= 4.1.0)
 Imports:
     Matrix,
     methods,
-    osqp
+    osqp,
+    stats
 Suggests:
     testthat (>= 3.0.0),
     openxlsx

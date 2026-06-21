@@ -1,5 +1,9 @@
 # ratecalib (开发中)
 
+- **新增标准 S3 提取方法**：`weights()` 取校准权重向量、`as.data.frame()` 取含校准权重列的数据框，
+  避免用户手挖 `fit$data$weight_calibrated`。
+- **修复**：`stats` 之前虽全程以 `stats::` 调用却未声明在 `DESCRIPTION` 的 Imports（潜在依赖缺漏），
+  现已补上并 `importFrom(stats, weights)`。
 - **新增目标统计量泛化：均值 / 总量（方法论路线图 §二，连续变量部分）**。目标表新增可选列
   `statistic`（`"proportion"`/`"mean"`/`"total"`，缺省 `"proportion"`，**向后兼容**）与 `value_var`
   （数值列名）。均值/总量用单元级充分统计量 `w̄_c = Σ(d·W)/D_c` 在现有单元上加线性目标行实现，数学正确、
@@ -22,7 +26,7 @@
   为有界 logit 距离，倍数**解析地恒在 `(lower, upper)` 开区间内**（要求 `lower < 1 < upper`），适合
   需要硬性封顶极端权重的场景。raking 与 logit 均用对偶 Newton 迭代（纯 R + Matrix，含回溯线搜索）
   求解，目标不可达时给出明确不收敛报错；二者当前仅支持 `mode = "exact"`。`settings` 记录 `distance`。
-  （soft 版 raking/logit、以及"默认改 raking"留作后续，后者为破坏性变更需跳版本号。）
+  （soft 版 raking/logit 留作后续；"默认改 raking"已决定放弃——默认永久保持 chi2，raking/logit 仅 opt-in。）
 - **新增 Excel 输入/输出（方法论路线图 §四）**：`read_calibration_data()`、`read_targets_xlsx()`
   （表头容错，支持英文别名与中文表头）、`calibrate_from_excel()`（一步读数据+目标并求解，自动从
   目标表推断分组变量）、`export_calibration_xlsx()`（导出 data/target_check/margin_check/

@@ -26,12 +26,29 @@ calibration_diagnostics <- function(x, sort_targets = TRUE) {
 #' @param top Number of largest-error targets to display.
 #' @param type Plot type: `"target_error"` for target errors or
 #'   `"multipliers"` for the weight-multiplier histogram.
+#' @param row.names,optional Standard [as.data.frame()] arguments (ignored).
 #' @param ... Further arguments passed to the underlying print or graphics
 #'   functions.
 #' @return `print` and `plot` return their input invisibly; `summary` returns a
-#'   `summary_pass_rate_calibration` object.
+#'   `summary_pass_rate_calibration` object; `weights` returns the calibrated
+#'   weight vector; `as.data.frame` returns the data with the calibrated weight
+#'   column.
 #' @name pass_rate_calibration-methods
 NULL
+
+#' @rdname pass_rate_calibration-methods
+#' @importFrom stats weights
+#' @export
+weights.pass_rate_calibration <- function(object, ...) {
+  object$data[[object$settings$new_weight]]
+}
+
+#' @rdname pass_rate_calibration-methods
+#' @export
+as.data.frame.pass_rate_calibration <- function(x, row.names = NULL,
+                                                 optional = FALSE, ...) {
+  as.data.frame(x$data, row.names = row.names, optional = optional, ...)
+}
 
 #' @rdname pass_rate_calibration-methods
 #' @export

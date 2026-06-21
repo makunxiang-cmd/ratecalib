@@ -22,6 +22,31 @@ test_that("example_rate_data has the documented structure and ASCII levels", {
   expect_true(all(d$initial_weight > 0))
 })
 
+test_that("weights() returns the calibrated weight vector", {
+  fit <- fit_example()
+  w <- weights(fit)
+  expect_type(w, "double")
+  expect_length(w, nrow(fit$data))
+  expect_identical(w, fit$data[[fit$settings$new_weight]])
+  expect_true(all(w > 0))
+})
+
+test_that("weights() honours a custom new_weight column name", {
+  d <- example_rate_data(n = 600, seed = 2)
+  fit <- calibrate_rates(d, "qualified", "initial_weight",
+                         groups = list(sex = c(M = 0.7, F = 0.66)),
+                         mode = "soft", new_weight = "cal_w")
+  expect_identical(weights(fit), fit$data$cal_w)
+})
+
+test_that("as.data.frame() returns the data with the calibrated weight column", {
+  fit <- fit_example()
+  df <- as.data.frame(fit)
+  expect_s3_class(df, "data.frame")
+  expect_equal(nrow(df), nrow(fit$data))
+  expect_true(fit$settings$new_weight %in% names(df))
+})
+
 test_that("print returns the object invisibly and emits output", {
   fit <- fit_example()
   out <- utils::capture.output(res <- print(fit))
