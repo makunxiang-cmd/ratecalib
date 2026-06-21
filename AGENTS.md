@@ -14,16 +14,23 @@
 - **版本**：`DESCRIPTION` 为 `0.2.1`；`NEWS.md` 顶部有「开发中」段记录**尚未发版**的改动
   （含**破坏性**：删除中文函数别名）。正式发版时记得跳版本号并把「开发中」改成版本标题。
 - **CRAN 体检**：`R CMD check --as-cran` = **0 ERROR / 0 WARNING / 1 NOTE**
-  （NOTE 仅为 "New submission"，首次提交不可避免，非问题）。
-- **测试**：**25 个 `test_that` 全通过**（`package/tests/testthat/` 下 5 个文件）。
-- **最近一次接手做了什么**（2026-06）：
-  1. 清理全部 CRAN 障碍，并把 **R 代码全面英文化**（删中文别名；报错/`print`/`summary`/`plot`
-     输出/`example_rate_data()` 类别值改英文 `M/F`、`Urban/Rural`、`Edu1-5`、`Age1-5`）；
-  2. 测试从 2 个扩到 25 个，过程中修复 `make_rate_targets()` 仅给 `overall`（无分组）时的两处误报；
-  3. **转 roxygen**：`NAMESPACE`/`man/` 改由 `#'` 注释生成，`document()` 为唯一真源；
-  4. 写 [`docs/METHODOLOGY-ROADMAP.md`](docs/METHODOLOGY-ROADMAP.md) 方法论扩展**设计方案**（仅设计，未实现）。
-- **下一步在哪**：功能扩展均未实现，设计与优先级见 `METHODOLOGY-ROADMAP.md` §九。
-  最稳起点＝可行性预检的「总体–分组一致性恒等式」；最实用＝Excel 输入输出。
+  （NOTE 仅为 "New submission"，首次提交不可避免，非问题）。注：`--as-cran` 会联网查 CRAN，
+  网络不通时会中止报错——与代码无关，可加 `--no-manual` 或重试（本机也无 `pdflatex`，PDF 手册检查会报错，
+  同样用 `--no-manual` 跳过）。
+- **测试**：**196 个断言全通过**（`package/tests/testthat/` 下 13 个文件）。
+- **方法论路线图已基本全部落地**（2026-06，见 `METHODOLOGY-ROADMAP.md`）：
+  距离族（chi2/raking/logit，exact+soft，`distance=`）、交互目标（冒号 key + `interactions=`）、
+  统计量泛化（proportion/mean/total + 任意分类取值占比，`means=/totals=/proportions=`）、
+  Excel 进出（`read_calibration_data`/`read_targets_xlsx`/`calibrate_from_excel`/`export_calibration_xlsx`，
+  openxlsx 走 Suggests）、可行性预检（`calibration_feasibility`）、重复权重方差（`calibrate_replicate_weights`/
+  `replicate_variance` + 进度条）、S3 提取（`weights`/`as.data.frame`）。均**非破坏性**（默认行为不变）。
+- **早期接手（2026-06 第一轮）**：清理 CRAN 障碍、R 代码全面英文化、转 roxygen、补测试基线。
+- **已决定不做（务必别再起）**：① 把默认距离改成 raking（破坏性）——默认永久 `chi2`；
+  ② 统一 `A x=t` 内部层（约束装配已共享，强行统一无价值且有风险）；
+  ③ design-based 线性化方差（要求权重为设计权重 `1/π≥1` 且需抽样设计信息，与本包通用权重定位冲突；
+  重复权重是设计正确替代）。理由详见 `METHODOLOGY-ROADMAP.md` §一/§七。
+- **下一步在哪**：核心方法论已完成。剩下的偏工程/发布：交互/统计量目标尚未接入 `calibration_feasibility`
+  的逐目标分析（已能识别并跳过、不误判）；如要发版见 §8。
 - **接手注意**：本仓库有两条铁律——① **R 代码只用 ASCII 英文**（§7）；② **不手改 `NAMESPACE`/`man/`，
   改 roxygen 再 `document()`**（§7）。详见 §7。
 
