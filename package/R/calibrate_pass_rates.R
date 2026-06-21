@@ -20,7 +20,10 @@
 #'   construction; it is solved by a dual Newton iteration and currently
 #'   supports `mode = "exact"` only. Raking is unbounded above, so `lower` and
 #'   `upper` are not enforced for it but multipliers outside that range are
-#'   reported in the diagnostics.
+#'   reported in the diagnostics. `"logit"` is the bounded logit distance whose
+#'   multipliers stay strictly inside `(lower, upper)` by construction (requires
+#'   `lower < 1 < upper`); it is also dual-Newton solved and `mode = "exact"`
+#'   only. Use `"logit"` when capping extreme weights is a hard requirement.
 #' @param lambda Positive soft-constraint penalty. Larger values emphasize
 #'   target matching more strongly.
 #' @param new_weight Name of the calibrated weight column added to `data`.
@@ -37,7 +40,7 @@ calibrate_pass_rates <- function(
     lower = 0.25,
     upper = 4,
     mode = c("soft", "exact"),
-    distance = c("chi2", "raking"),
+    distance = c("chi2", "raking", "logit"),
     lambda = 1e4,
     new_weight = "weight_calibrated",
     verbose = FALSE
@@ -274,19 +277,43 @@ calibrate_pass_rates <- function(
 
     x <- as.numeric(solution$x)
   } else {
-    # Entropy (raking) distance, exact calibration via dual Newton.
+    # Deville-Sarndal distance family, exact calibration via dual Newton.
     # Constraints A_eq x = t_eq: population margins plus linearized rate rows.
+    if (distance == "raking") {
+      # Entropy distance: g(eta) = exp(eta), strictly positive, unbounded above.
+      gfun <- function(eta) exp(eta)
+      gpfun <- function(eta) exp(eta)
+    } else {
+      # Logit distance: g maps eta into the open interval (lower, upper).
+      if (lower >= 1 || upper <= 1) {
+        stop("distance='logit' requires lower < 1 < upper.", call. = FALSE)
+      }
+      Lb <- lower; Ub <- upper
+      Acoef <- (Ub - Lb) / ((1 - Lb) * (Ub - 1))
+      gfun <- function(eta) {
+        z <- exp(Acoef * eta)
+        (Lb * (Ub - 1) + Ub * (1 - Lb) * z) / ((Ub - 1) + (1 - Lb) * z)
+      }
+      gpfun <- function(eta) {
+        z <- exp(Acoef * eta)
+        den <- (Ub - 1) + (1 - Lb) * z
+        (Ub - Lb)^2 * z / den^2
+      }
+    }
     A_eq <- rbind(M, R)
     t_eq <- c(margin_rhs, rep(0, nrow(R)))
-    solution <- .calibrate_raking(D, A_eq, t_eq, verbose = verbose)
+    solution <- .calibrate_dual(D, A_eq, t_eq, gfun, gpfun, verbose = verbose)
     status <- if (isTRUE(solution$converged)) "solved" else "not converged"
     if (!isTRUE(solution$converged)) {
       stop(
-        "Raking dual iteration did not converge (max residual ",
+        "The ", distance, " dual iteration did not converge (max residual ",
         signif(solution$max_resid, 3), " after ", solution$iterations,
-        " iterations). The exact targets may be infeasible or unreachable ",
-        "(for example, an all-pass or all-fail group). Try mode='soft' with ",
-        "distance='chi2'.",
+        " iterations). The exact targets may be infeasible or unreachable",
+        if (distance == "logit")
+          " within (lower, upper); try widening the bounds, or note an "
+        else
+          ", for example an ",
+        "all-pass or all-fail group. Otherwise try mode='soft' with distance='chi2'.",
         call. = FALSE
       )
     }
@@ -418,14 +445,14 @@ calibrate_pass_rates <- function(
   )
 }
 
-# Dual Newton solver for exact entropy (raking) calibration.
-#
-# Solves A x = t with x_c = D_c * exp(eta_c), eta = A^T lambda, for the dual
-# variable lambda. Newton step uses J = A diag(D*exp(eta)) A^T with a
+# Dual Newton solver for exact calibration in the Deville-Sarndal distance
+# family. Solves A x = t with x_c = D_c * g(eta_c), eta = A^T lambda, for the
+# dual variable lambda, where g is the distance's weight-ratio function and
+# gprime its derivative. Newton step uses J = A diag(D*g'(eta)) A^T with a
 # backtracking line search on the infinity-norm residual for robustness.
 # Returns a list with the primal solution x and convergence information.
-.calibrate_raking <- function(D, A, t, max_iter = 200L, tol = 1e-10,
-                              verbose = FALSE) {
+.calibrate_dual <- function(D, A, t, gfun, gpfun, max_iter = 200L,
+                            tol = 1e-10, verbose = FALSE) {
   A <- methods::as(A, "CsparseMatrix")
   k <- nrow(A)
   m <- ncol(A)
@@ -433,7 +460,7 @@ calibrate_pass_rates <- function(
   eta <- as.numeric(Matrix::crossprod(A, lambda))  # A^T lambda, length m
 
   resid_of <- function(eta) {
-    x <- D * exp(eta)
+    x <- D * gfun(eta)
     list(x = x, F = as.numeric(A %*% x) - t)
   }
 
@@ -445,7 +472,7 @@ calibrate_pass_rates <- function(
       return(list(x = cur$x, iterations = it - 1L, converged = TRUE,
                   max_resid = resid))
     }
-    Dg <- D * exp(eta)
+    Dg <- D * gpfun(eta)
     J <- as.matrix(A %*% Matrix::Diagonal(m, x = Dg) %*% Matrix::t(A))
     step <- tryCatch(solve(J, cur$F),
                      error = function(e) solve(J + diag(1e-10, k), cur$F))

@@ -13,7 +13,7 @@ calibrate_pass_rates(
   lower = 0.25,
   upper = 4,
   mode = c("soft", "exact"),
-  distance = c("chi2", "raking"),
+  distance = c("chi2", "raking", "logit"),
   lambda = 10000,
   new_weight = "weight_calibrated",
   verbose = FALSE
@@ -43,7 +43,10 @@ and reproduces earlier behaviour. \code{"raking"} is the entropy distance
 construction; it is solved by a dual Newton iteration and currently
 supports \code{mode = "exact"} only. Raking is unbounded above, so \code{lower} and
 \code{upper} are not enforced for it but multipliers outside that range are
-reported in the diagnostics.}
+reported in the diagnostics. \code{"logit"} is the bounded logit distance whose
+multipliers stay strictly inside \verb{(lower, upper)} by construction (requires
+\verb{lower < 1 < upper}); it is also dual-Newton solved and \code{mode = "exact"}
+only. Use \code{"logit"} when capping extreme weights is a hard requirement.}
 
 \item{lambda}{Positive soft-constraint penalty. Larger values emphasize
 target matching more strongly.}

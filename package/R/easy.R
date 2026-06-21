@@ -17,7 +17,8 @@
 #' @param lower,upper Lower and upper bounds on the weight-adjustment multiplier.
 #' @param mode `"soft"` for soft constraints, `"exact"` for exact constraints.
 #' @param distance Calibration distance, passed to [calibrate_pass_rates()].
-#'   `"chi2"` (default) or `"raking"` (entropy; exact mode only).
+#'   `"chi2"` (default), `"raking"` (entropy) or `"logit"` (bounded); the latter
+#'   two are exact mode only.
 #' @param lambda Soft-constraint penalty strength.
 #' @param new_weight Name of the new calibrated weight column.
 #' @param check Whether to run the data checks before solving.
@@ -36,7 +37,7 @@ calibrate_rates <- function(
     lower = 0.25,
     upper = 4,
     mode = c("soft", "exact"),
-    distance = c("chi2", "raking"),
+    distance = c("chi2", "raking", "logit"),
     lambda = 1e4,
     new_weight = "weight_calibrated",
     check = TRUE,

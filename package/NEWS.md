@@ -1,12 +1,13 @@
 # ratecalib (开发中)
 
 - **新增距离函数族（方法论路线图 §一）：`distance` 参数**。`calibrate_pass_rates()` 与
-  `calibrate_rates()` 新增 `distance = c("chi2", "raking")`。`"chi2"`（默认）为原线性/卡方距离，
-  走 OSQP，**行为与旧版完全一致**（非破坏性）。`"raking"` 为熵距离 `g log g - g + 1`，解
-  `g = exp(eta)` **天然恒正**，用对偶 Newton 迭代（纯 R + Matrix，含回溯线搜索）求解，目标不可达
-  时给出明确的不收敛报错。当前 raking 仅支持 `mode = "exact"`（soft 版 raking、logit 距离、
-  以及"默认改 raking"留作后续，后者为破坏性变更需跳版本号）。raking 上方无界，故 `lower`/`upper`
-  不强制执行，但越界倍数仍在诊断中报告。`settings` 新增记录 `distance`。
+  `calibrate_rates()` 新增 `distance = c("chi2", "raking", "logit")`。`"chi2"`（默认）为原线性/卡方
+  距离，走 OSQP，**行为与旧版完全一致**（非破坏性）。`"raking"` 为熵距离 `g log g - g + 1`，解
+  `g = exp(eta)` **天然恒正**（上方无界，`lower`/`upper` 不强制，越界倍数在诊断中报告）。`"logit"`
+  为有界 logit 距离，倍数**解析地恒在 `(lower, upper)` 开区间内**（要求 `lower < 1 < upper`），适合
+  需要硬性封顶极端权重的场景。raking 与 logit 均用对偶 Newton 迭代（纯 R + Matrix，含回溯线搜索）
+  求解，目标不可达时给出明确不收敛报错；二者当前仅支持 `mode = "exact"`。`settings` 记录 `distance`。
+  （soft 版 raking/logit、以及"默认改 raking"留作后续，后者为破坏性变更需跳版本号。）
 - **新增 Excel 输入/输出（方法论路线图 §四）**：`read_calibration_data()`、`read_targets_xlsx()`
   （表头容错，支持英文别名与中文表头）、`calibrate_from_excel()`（一步读数据+目标并求解，自动从
   目标表推断分组变量）、`export_calibration_xlsx()`（导出 data/target_check/margin_check/

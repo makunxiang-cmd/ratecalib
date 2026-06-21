@@ -68,6 +68,43 @@ test_that("raking requires exact mode for now", {
   )
 })
 
+logit_fit <- function(lower = 0.25, upper = 4) {
+  d <- example_rate_data(n = 1200, seed = 7)
+  calibrate_pass_rates(
+    d, outcome = "qualified", weight = "initial_weight",
+    group_vars = c("sex", "residence"),
+    targets = make_rate_targets(groups = list(sex = c(M = 0.70, F = 0.65))),
+    mode = "exact", distance = "logit", lower = lower, upper = upper
+  )
+}
+
+test_that("logit exact hits the targets and preserves the margins", {
+  fit <- logit_fit()
+  expect_true(all(fit$target_check$abs_error < 1e-6))
+  expect_lt(max(abs(fit$margin_check$relative_change)), 1e-6)
+})
+
+test_that("logit keeps every multiplier strictly inside (lower, upper)", {
+  fit <- logit_fit(lower = 0.5, upper = 2)
+  g <- fit$cell_weights$.multiplier
+  expect_true(all(g > 0.5))
+  expect_true(all(g < 2))
+})
+
+test_that("logit records the distance in settings", {
+  expect_equal(logit_fit()$settings$distance, "logit")
+})
+
+test_that("logit requires exact mode for now", {
+  d <- example_rate_data(n = 400, seed = 7)
+  expect_error(
+    calibrate_pass_rates(d, "qualified", "initial_weight", group_vars = "sex",
+                         targets = make_rate_targets(groups = list(sex = c(M = 0.7, F = 0.65))),
+                         mode = "soft", distance = "logit"),
+    "exact"
+  )
+})
+
 test_that("calibrate_rates passes distance through to the solver", {
   d <- example_rate_data(n = 1200, seed = 7)
   fit <- calibrate_rates(
