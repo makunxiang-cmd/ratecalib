@@ -5,7 +5,14 @@
 \alias{print.ratecalib_check}
 \title{Pre-calibration data checks}
 \usage{
-check_calibration_data(data, outcome, weight, group_vars, targets = NULL)
+check_calibration_data(
+  data,
+  outcome,
+  weight,
+  group_vars,
+  targets = NULL,
+  consistency_tol = 0.01
+)
 
 \method{print}{ratecalib_check}(x, ...)
 }
@@ -19,6 +26,12 @@ check_calibration_data(data, outcome, weight, group_vars, targets = NULL)
 \item{group_vars}{Character vector of grouping-variable names.}
 
 \item{targets}{Optional target table.}
+
+\item{consistency_tol}{Tolerance (on the rate scale) for the overall-vs-group
+consistency warning. Only inconsistencies larger than this are reported, so
+that sub-tolerance rounding (round-number targets that do not divide the
+weighted marginals exactly) does not trigger noise. For a precise,
+exact-mode feasibility analysis call \code{\link[=calibration_feasibility]{calibration_feasibility()}} directly.}
 
 \item{x}{A \code{ratecalib_check} object (for the print method).}
 

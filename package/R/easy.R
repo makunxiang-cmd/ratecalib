@@ -99,13 +99,19 @@ calibrate_rates <- function(
 #' @param weight Name of the initial weight column.
 #' @param group_vars Character vector of grouping-variable names.
 #' @param targets Optional target table.
+#' @param consistency_tol Tolerance (on the rate scale) for the overall-vs-group
+#'   consistency warning. Only inconsistencies larger than this are reported, so
+#'   that sub-tolerance rounding (round-number targets that do not divide the
+#'   weighted marginals exactly) does not trigger noise. For a precise,
+#'   exact-mode feasibility analysis call [calibration_feasibility()] directly.
 #' @param x A `ratecalib_check` object (for the print method).
 #' @param ... Further arguments (ignored by the print method).
 #'
 #' @return A list of class `ratecalib_check` with `ok`, `errors`, `warnings`,
 #'   `overview`, `group_summary` and `target_support`.
 #' @export
-check_calibration_data <- function(data, outcome, weight, group_vars, targets = NULL) {
+check_calibration_data <- function(data, outcome, weight, group_vars,
+                                   targets = NULL, consistency_tol = 0.01) {
   errors <- character()
   warnings <- character()
 
@@ -200,6 +206,23 @@ check_calibration_data <- function(data, outcome, weight, group_vars, targets = 
         errors <- c(errors, paste0("There are ", length(bad),
                                    " target(s) not supported by the data; see target_support."))
       }
+    }
+  }
+
+  # Overall-vs-group consistency: deterministic, closed-form. Informational
+  # only (a conflict is fatal in exact mode but merely unachievable in soft
+  # mode), so it is reported as a warning rather than an error.
+  if (!is.null(targets) && all(c("variable", "level", "target_rate") %in% names(targets))) {
+    fz <- tryCatch(
+      calibration_feasibility(data, outcome, weight, group_vars, targets,
+                              tol = consistency_tol),
+      error = function(e) NULL
+    )
+    if (!is.null(fz) && !isTRUE(fz$consistency$consistent)) {
+      warnings <- c(warnings, paste0(
+        "Targets imply conflicting overall rates (", fz$consistency$detail,
+        "); under mode='exact' this is infeasible, under mode='soft' the targets ",
+        "cannot all be met. See calibration_feasibility()."))
     }
   }
 

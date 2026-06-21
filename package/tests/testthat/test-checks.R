@@ -65,6 +65,49 @@ test_that("check warns about all-pass / all-fail groups and unsupported targets"
   expect_false(bad$supported)
 })
 
+test_that("check warns when group targets imply an overall rate that conflicts with the overall target", {
+  # g = a,a,b,b ; weight 1 ; y = 1,0,1,0 -> W_a = W_b = 2, grand total 4
+  d <- data.frame(
+    y = c(1L, 0L, 1L, 0L),
+    w = c(1, 1, 1, 1),
+    g = c("a", "a", "b", "b"),
+    stringsAsFactors = FALSE
+  )
+  # g implies overall (2*0.8 + 2*0.6)/4 = 0.7, but overall target is 0.5
+  targets <- make_rate_targets(overall = 0.5, groups = list(g = c(a = 0.8, b = 0.6)))
+  report <- check_calibration_data(d, "y", "w", "g", targets = targets)
+  expect_true(report$ok)  # informational: not fatal (soft mode still solves)
+  expect_true(any(grepl("overall", report$warnings, ignore.case = TRUE)))
+})
+
+test_that("check does not warn about consistency when group targets agree with the overall target", {
+  d <- data.frame(
+    y = c(1L, 0L, 1L, 0L),
+    w = c(1, 1, 1, 1),
+    g = c("a", "a", "b", "b"),
+    stringsAsFactors = FALSE
+  )
+  targets <- make_rate_targets(overall = 0.7, groups = list(g = c(a = 0.8, b = 0.6)))
+  report <- check_calibration_data(d, "y", "w", "g", targets = targets)
+  expect_false(any(grepl("conflicting overall", report$warnings, ignore.case = TRUE)))
+})
+
+test_that("check tolerates sub-tolerance overall inconsistencies (round-number targets)", {
+  # g implies overall 0.7; overall target 0.705 differs by only 0.005 (< 0.01).
+  # Continuous weights almost never make round targets exactly consistent, so a
+  # tight check would warn on nearly every realistic use; the default tolerance
+  # must absorb this and warn only on material (gross) inconsistencies.
+  d <- data.frame(
+    y = c(1L, 0L, 1L, 0L),
+    w = c(1, 1, 1, 1),
+    g = c("a", "a", "b", "b"),
+    stringsAsFactors = FALSE
+  )
+  targets <- make_rate_targets(overall = 0.705, groups = list(g = c(a = 0.8, b = 0.6)))
+  report <- check_calibration_data(d, "y", "w", "g", targets = targets)
+  expect_false(any(grepl("conflicting overall", report$warnings, ignore.case = TRUE)))
+})
+
 test_that("check marks targets whose variable is not a grouping variable", {
   d <- make_ok_data()
   targets <- data.frame(
