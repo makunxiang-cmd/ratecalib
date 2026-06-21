@@ -21,6 +21,10 @@
 1. **一步式接口**：`calibrate_rates()`，自动建目标表、识别分组、数据检查后求解；
 2. **底层专业接口**：`calibrate_pass_rates()`，适合需要完全控制目标表和求解参数的使用者。
 
+除基础的合格率校准外，本包还支持一组**进阶功能**（详见[第十四节](#十四进阶功能本版新增)）：
+多种校准距离（卡方 / 熵-raking / 有界-logit）、交互（交叉分组）目标、对连续变量的均值/总量校准与对任意
+分类取值的占比校准、求解前的目标可行性预检、Excel 数据进出、以及基于重复权重的方差估计。
+
 ---
 
 ## 一、安装
@@ -29,6 +33,12 @@
 
 ```r
 install.packages(c("Matrix", "osqp"))
+```
+
+若要使用 Excel 读写功能（[第十四节](#5-excel-数据输入--输出)），再装可选依赖 `openxlsx`：
+
+```r
+install.packages("openxlsx")
 ```
 
 再安装本地源码包：
@@ -621,4 +631,145 @@ upper = 10
 7. 必要时调整优先级、lambda或权重范围；
 8. 保存最终权重和全部诊断结果；
 9. 在报告中披露校准方法、目标来源和权重限制。
+
+---
+
+## 十四、进阶功能（本版新增）
+
+以下功能均向后兼容：不使用时，函数行为与基础用法完全一致。
+
+### 1. 校准距离函数族
+
+`calibrate_pass_rates()` 与 `calibrate_rates()` 新增参数 `distance`，可选三种校准距离：
+
+| `distance` | 距离 | 倍数性质 | 适用 |
+|---|---|---|---|
+| `"chi2"`（默认） | 线性 / 卡方 | 靠 `lower`/`upper` 箱式约束兜底 | 一般默认；soft/exact 均可 |
+| `"raking"` | 熵（raking） | `g=exp(η)` **天然恒正**，上方无界 | 要正性保证；越界倍数仅在诊断中报告 |
+| `"logit"` | 有界 logit | 倍数**解析地恒在 `(lower, upper)` 内** | 需硬性封顶极端权重（要求 `lower<1<upper`） |
+
+`"chi2"` 走 OSQP，行为与旧版完全一致；`"raking"`/`"logit"` 用对偶 Newton 求解（纯 R + Matrix），
+exact 与 soft 模式均支持。例：
+
+```r
+fit <- calibrate_pass_rates(
+  dat, "qualified", "initial_weight",
+  group_vars = c("sex", "residence"),
+  targets = make_rate_targets(groups = list(sex = c(M = 0.72, F = 0.68))),
+  mode = "exact", distance = "raking"
+)
+```
+
+> 注：默认距离永久保持 `"chi2"`，不会改为 raking；raking/logit 始终是可选项。
+
+### 2. 交互（交叉分组）目标
+
+校准「城镇 × 男性」这类交叉分组的合格率，用冒号连接的复合 key：
+
+```r
+targets <- make_rate_targets(
+  groups = list(sex = c(M = 0.72, F = 0.68)),
+  interactions = list("sex:residence" = c("M:Urban" = 0.75, "F:Rural" = 0.62))
+)
+fit <- calibrate_pass_rates(dat, "qualified", "initial_weight",
+                            group_vars = c("sex", "residence"), targets = targets)
+```
+
+交互目标只新增目标行、**不**自动固定交互边际；各分量变量须在 `group_vars` 中；水平值本身不可含冒号。
+
+### 3. 均值 / 总量目标（连续变量）
+
+除合格率外，可校准任意数值变量的**组内均值或总量**。在目标表加 `statistic`（`"mean"`/`"total"`）与
+`value_var` 列，或用 `make_rate_targets()` 的 `means` / `totals` 参数（均**仅支持 `mode="exact"`**）：
+
+```r
+# dat$income 为数值列
+targets <- make_rate_targets(
+  overall = 0.70,
+  means  = data.frame(variable = ".overall", level = ".all",
+                      value_var = "income", target = 52000),
+  totals = data.frame(variable = "residence", level = "Urban",
+                      value_var = "income", target = 1.2e8)
+)
+fit <- calibrate_pass_rates(dat, "qualified", "initial_weight",
+                            group_vars = "residence", targets = targets,
+                            mode = "exact")
+```
+
+### 4. 任意分类取值的占比
+
+合格率是「`outcome==1` 的占比」的特例。要校准**其他变量某取值的占比**（含 1/2 编码这类非 0/1 数据），
+用 `value_var` + `value` 列指定被测量。注意「占比」≠「均值」——`{1,2}` 数据求「等于 1 的占比」需用占比，
+而非对原值取均值：
+
+```r
+# 校准总体中 grade == "A" 的加权占比为 0.40
+targets <- data.frame(
+  variable = ".overall", level = ".all", target_rate = 0.40,
+  statistic = "proportion", value_var = "grade", value = "A",
+  stringsAsFactors = FALSE
+)
+fit <- calibrate_pass_rates(dat, "qualified", "initial_weight",
+                            group_vars = "sex", targets = targets, mode = "exact")
+```
+
+### 5. Excel 数据输入 / 输出
+
+需先 `install.packages("openxlsx")`。
+
+```r
+# 读样本数据与目标表
+dat     <- read_calibration_data("input.xlsx", sheet = "data")
+targets <- read_targets_xlsx("input.xlsx", sheet = "targets")  # 表头支持中英别名
+
+# 一步：从工作簿读数据+目标并求解（未给 group_vars 时自动从目标表推断）
+fit <- calibrate_from_excel("input.xlsx", outcome = "qualified",
+                            weight = "initial_weight",
+                            data_sheet = "data", targets_sheet = "targets")
+
+# 导出多工作表结果（data / target_check / margin_check / diagnostics / settings）
+export_calibration_xlsx(fit, "result.xlsx")
+```
+
+### 6. 求解前目标可行性预检
+
+`calibration_feasibility()` 在求解前做两项确定性检查：(1) **总体–分组一致性**——某分组变量每个水平都有
+目标时，总体率被唯一确定，据此抓出与显式总体目标互相矛盾的设定；(2) **单目标可达区间**——目标落在
+区间外则必不可行（必要非充分）。
+
+```r
+fz <- calibration_feasibility(dat, "qualified", "initial_weight",
+                              group_vars = "sex",
+                              targets = make_rate_targets(overall = 0.62,
+                                groups = list(sex = c(M = 0.66, F = 0.60))))
+fz                      # 打印一致性与可达区间
+fz$consistency$consistent
+```
+
+> 一步式 `calibrate_rates(check = TRUE)` 默认路径也会在目标实质性不一致时发出告警。
+
+### 7. 重复权重方差估计
+
+校准后估计量的方差不同于原始抽样。提供基于**重复权重**（bootstrap / jackknife / BRR，外部生成）的
+方差估计，与 `survey` 包的 `svrepdesign` 对齐：
+
+```r
+# repw: 每行一个样本、每列一套重复权重的矩阵
+rc <- calibrate_replicate_weights(fit, repweights = repw,
+                                  scale = 1, rscales = NULL, progress = TRUE)
+
+# 估计某数值变量加权总量/均值的方差与标准误
+v <- replicate_variance(rc, x = dat$income, statistic = "total")
+v$estimate; v$se
+```
+
+`scale` / `rscales` 为重复方差常数，按你的重复方案设定（如 JK1：`scale=(R-1)/R`、`rscales=1`；
+bootstrap：`scale=1/R`）。方差公式为 `Var = scale · Σ rscales_r · (θ̂_r − θ̂_0)²`。
+
+### 8. 标准提取方法
+
+```r
+weights(fit)        # 校准后权重向量（等价于 fit$data[[new_weight]]）
+as.data.frame(fit)  # 含校准权重列的数据框
+```
 
